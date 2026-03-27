@@ -1,0 +1,2 @@
+-- Optional seed data for local `supabase db reset`.
+-- Production data는 Supabase Table Editor 또는 SQL로 입력합니다.

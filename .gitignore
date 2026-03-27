@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.env
+.env.local
+.vercel
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Supabase CLI / 임시 비밀값
+supabase/.temp/
+.env.supabase-db-password.tmp
+.api-keys.tmp.json
