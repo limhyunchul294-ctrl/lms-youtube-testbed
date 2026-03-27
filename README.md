@@ -73,17 +73,77 @@ gh auth login
 gh repo create <저장소이름> --public --source=. --remote=origin --push
 ```
 
-**Vercel**
+**Vercel (CLI)**
 
-```bash
-vercel login
-cd <프로젝트-루트>
-vercel link   # 새 프로젝트 생성 또는 기존 프로젝트 연결
-vercel env pull .env.local   # 선택: 원격 환경변수 동기화
-vercel --prod
-```
+1. **CLI 설치** (전역 또는 프로젝트마다 `npx` 사용)
 
-또는 GitHub 저장소를 Vercel 대시보드에서 Import한 뒤, **Settings → Environment Variables**에 `.env.local`과 동일한 값을 등록합니다. `vercel.json`의 Cron은 `/api/sync/airtable`를 호출하며, 인증은 **`Authorization: Bearer CRON_SECRET`**(Vercel이 Cron 요청에 자동 부여) 또는 수동 호출 시 `x-sync-key` / `SYNC_API_KEY`를 사용합니다.
+   ```bash
+   npm i -g vercel
+   # 또는: npx vercel@latest
+   ```
+
+2. **로그인**
+
+   - **방법 A — 대화형** (권장)
+
+     ```bash
+     vercel login
+     ```
+
+     이메일 또는 GitHub로 로그인합니다.
+
+   - **방법 B — 토큰** (`vercel login`이 실패하거나 CI/스크립트용)
+
+     1. [Vercel → Account → Tokens](https://vercel.com/account/tokens)에서 **Create Token**으로 토큰 발급
+     2. 터미널에서 환경변수로 넣고 동일 세션에서 CLI 실행
+
+        **PowerShell**
+
+        ```powershell
+        $env:VERCEL_TOKEN = "여기에_발급한_토큰"
+        vercel whoami
+        ```
+
+        **cmd / bash**
+
+        ```bash
+        set VERCEL_TOKEN=여기에_발급한_토큰
+        vercel whoami
+        ```
+
+     토큰이 유효하면 `vercel whoami`에 계정이 표시됩니다. 토큰은 저장소에 커밋하지 마세요.
+
+3. **프로젝트 연결·배포** (저장소 루트에서)
+
+   ```bash
+   cd <프로젝트-루트>
+   vercel link          # 팀·프로젝트 선택 (최초 1회). 새 Vercel 프로젝트 생성 가능
+   vercel               # 프리뷰 배포
+   vercel --prod        # 프로덕션 배포
+   ```
+
+4. **환경 변수**
+
+   - **대시보드**: Project → **Settings → Environment Variables**에 `.env.local`과 같은 이름·값을 등록 (Production / Preview / Development 필요 시 구분).
+   - **CLI로 추가** (예: Production에만):
+
+     ```bash
+     vercel env add NEXT_PUBLIC_SUPABASE_URL production
+     ```
+
+     여러 개는 반복 입력하거나, 대시보드에서 한 번에 붙여넣는 편이 빠를 수 있습니다.
+
+   - 로컬로 내려받기 (선택):
+
+     ```bash
+     vercel env pull .env.local
+     ```
+
+5. **Cron / 동기화 API**
+
+   `vercel.json`의 Cron은 `POST /api/sync/airtable`를 호출합니다. 인증은 Vercel이 부여하는 **`Authorization: Bearer CRON_SECRET`**(프로젝트 **Settings → Environment Variables**에 `CRON_SECRET` 등록) 또는 수동 호출 시 헤더 `x-sync-key`(값은 `SYNC_API_KEY`)입니다.
+
+GitHub만 연결해 두고 Vercel은 CLI만 쓰는 경우에도 위 순서로 배포하면 됩니다. 대시보드에서 **Import Git Repository**를 쓰지 않아도 `vercel link` + `vercel --prod`로 동일하게 배포할 수 있습니다.
 
 ## 강의 등록 방법
 
