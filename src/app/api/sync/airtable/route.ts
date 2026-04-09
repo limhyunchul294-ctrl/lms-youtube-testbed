@@ -1,22 +1,25 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// 서버사이드 Supabase 클라이언트 (service_role key로 RLS 우회)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const AIRTABLE_TOKEN = process.env.AIRTABLE_PERSONAL_TOKEN!
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID!
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) return null
+  return createClient(supabaseUrl, serviceRoleKey)
+}
 
 // ── Airtable API 헬퍼 ──
 async function airtableFetch(tableName: string, method: string, body?: any) {
-  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`
+  const airtableToken = process.env.AIRTABLE_PERSONAL_TOKEN
+  const airtableBaseId = process.env.AIRTABLE_BASE_ID
+  if (!airtableToken || !airtableBaseId) {
+    throw new Error('Airtable 환경변수가 설정되지 않았습니다.')
+  }
+  const url = `https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(tableName)}`
   const res = await fetch(url, {
     method,
     headers: {
-      'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+      'Authorization': `Bearer ${airtableToken}`,
       'Content-Type': 'application/json',
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -30,15 +33,20 @@ async function airtableFetch(tableName: string, method: string, body?: any) {
 
 // 기존 Airtable 레코드 조회 (모든 페이지)
 async function getAirtableRecords(tableName: string) {
+  const airtableToken = process.env.AIRTABLE_PERSONAL_TOKEN
+  const airtableBaseId = process.env.AIRTABLE_BASE_ID
+  if (!airtableToken || !airtableBaseId) {
+    throw new Error('Airtable 환경변수가 설정되지 않았습니다.')
+  }
   const records: any[] = []
   let offset: string | undefined
 
   do {
-    const url = new URL(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(tableName)}`)
+    const url = new URL(`https://api.airtable.com/v0/${airtableBaseId}/${encodeURIComponent(tableName)}`)
     if (offset) url.searchParams.set('offset', offset)
 
     const res = await fetch(url.toString(), {
-      headers: { 'Authorization': `Bearer ${AIRTABLE_TOKEN}` },
+      headers: { 'Authorization': `Bearer ${airtableToken}` },
     })
     const data = await res.json()
     records.push(...(data.records || []))
@@ -83,6 +91,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    const supabase = getSupabaseAdminClient()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Supabase 환경변수가 설정되지 않았습니다.' },
+        { status: 500 }
+      )
+    }
+
     const logs: string[] = []
 
     // ── 1. 강의 목록 동기화 ──
@@ -203,6 +219,6 @@ export async function GET(req: Request) {
     endpoints: {
       sync: 'POST /api/sync/airtable (x-sync-key header)',
     },
-    airtable_configured: !!AIRTABLE_TOKEN && !!AIRTABLE_BASE_ID,
+    airtable_configured: !!process.env.AIRTABLE_PERSONAL_TOKEN && !!process.env.AIRTABLE_BASE_ID,
   })
 }

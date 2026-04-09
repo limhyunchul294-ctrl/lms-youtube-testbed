@@ -167,6 +167,25 @@ INSERT INTO lessons (course_id, title, youtube_id, duration_seconds, sort_order)
   ((SELECT id FROM courses WHERE title = '전기차 기초 이론'), '3강. 전력 변환 장치', 'YOUR_YOUTUBE_ID', 750, 3);
 ```
 
+## 데모 시연 빠른 시작
+
+관리자 계정으로 `/admin` 접속 후 아래 순서로 실행하면 즉시 시연 가능합니다.
+
+1. **🚀 원클릭 데모 준비**
+   - 샘플 강의/레슨 생성
+   - 샘플 수강생 진도 생성 (없으면 샘플 계정 자동 생성)
+   - Airtable 동기화까지 한 번에 실행
+2. 생성된 샘플 계정으로 로그인 테스트
+   - `student1@example.com`
+   - `student2@example.com`
+   - `student3@example.com`
+3. 샘플 계정 비밀번호
+   - 기본값: `Sample1234!`
+   - 변경하려면 환경변수 `SAMPLE_STUDENT_PASSWORD` 설정
+4. 필요 시 **🗑️ 샘플 데이터 초기화**로 원상복구
+
+> 참고: 샘플 데이터 API는 `x-sync-key` 인증(`SYNC_API_KEY`)을 사용합니다.
+
 ## 진도율 추적 방식
 
 - YouTube IFrame API로 재생 상태를 실시간 감지
@@ -192,6 +211,10 @@ src/
 │   │   └── page.tsx       # 레슨 영상 플레이어
 │   └── admin/
 │       └── page.tsx       # 관리자 대시보드
+│   └── api/admin/
+│       ├── seed-sample/route.ts   # 샘플 강의/레슨 생성
+│       ├── seed-progress/route.ts # 샘플 진도(계정 자동 생성 포함)
+│       └── reset-sample/route.ts  # 샘플 데이터 초기화
 ├── components/
 │   ├── Navbar.tsx         # 네비게이션 (PC+모바일)
 │   └── YouTubePlayer.tsx  # YouTube 플레이어 + 진도 추적

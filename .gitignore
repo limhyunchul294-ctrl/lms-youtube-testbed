@@ -11,3 +11,6 @@ next-env.d.ts
 supabase/.temp/
 .env.supabase-db-password.tmp
 .api-keys.tmp.json
+
+.vercel
+.env*.local

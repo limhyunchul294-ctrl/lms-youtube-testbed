@@ -12,6 +12,14 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [seeding, setSeeding] = useState(false)
+  const [seedResult, setSeedResult] = useState<string | null>(null)
+  const [progressSeeding, setProgressSeeding] = useState(false)
+  const [progressSeedResult, setProgressSeedResult] = useState<string | null>(null)
+  const [resetting, setResetting] = useState(false)
+  const [resetResult, setResetResult] = useState<string | null>(null)
+  const [demoPreparing, setDemoPreparing] = useState(false)
+  const [demoResult, setDemoResult] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -97,6 +105,50 @@ export default function AdminPage() {
           />
           <button
             onClick={async () => {
+              setDemoPreparing(true)
+              setDemoResult(null)
+              try {
+                const commonHeaders = { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' }
+
+                const seedCourseRes = await fetch('/api/admin/seed-sample', {
+                  method: 'POST',
+                  headers: commonHeaders,
+                })
+                const seedCourseJson = await seedCourseRes.json()
+                if (!seedCourseJson.success) throw new Error(seedCourseJson.error || '샘플 강의 생성 실패')
+
+                const seedProgressRes = await fetch('/api/admin/seed-progress', {
+                  method: 'POST',
+                  headers: commonHeaders,
+                })
+                const seedProgressJson = await seedProgressRes.json()
+                if (!seedProgressJson.success) throw new Error(seedProgressJson.error || '샘플 진도 생성 실패')
+
+                const syncRes = await fetch('/api/sync/airtable', {
+                  method: 'POST',
+                  headers: commonHeaders,
+                })
+                const syncJson = await syncRes.json()
+                if (!syncJson.success) throw new Error(syncJson.error || 'Airtable 동기화 실패')
+
+                const createdCount = seedProgressJson.created_users?.length || 0
+                const createdHint = createdCount > 0
+                  ? ` / 신규 계정 ${createdCount}개 (비밀번호: ${seedProgressJson.sample_password})`
+                  : ''
+                setDemoResult(`원클릭 데모 준비 완료${createdHint}`)
+                window.location.reload()
+              } catch (e: any) {
+                setDemoResult(`오류: ${e.message}`)
+              }
+              setDemoPreparing(false)
+            }}
+            disabled={demoPreparing}
+            className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {demoPreparing ? '준비 중...' : '🚀 원클릭 데모 준비'}
+          </button>
+          <button
+            onClick={async () => {
               setSyncing(true)
               setSyncResult(null)
               try {
@@ -120,10 +172,113 @@ export default function AdminPage() {
           >
             {syncing ? '동기화 중...' : '📊 Airtable 동기화'}
           </button>
+          <button
+            onClick={async () => {
+              setSeeding(true)
+              setSeedResult(null)
+              try {
+                const res = await fetch('/api/admin/seed-sample', {
+                  method: 'POST',
+                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
+                })
+                const result = await res.json()
+                if (result.success) {
+                  setSeedResult(`샘플 데이터 생성 완료: courses ${result.courses}건, lessons ${result.lessons}건`)
+                  window.location.reload()
+                } else {
+                  setSeedResult(`오류: ${result.error}`)
+                }
+              } catch (e: any) {
+                setSeedResult(`연결 실패: ${e.message}`)
+              }
+              setSeeding(false)
+            }}
+            disabled={seeding}
+            className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 active:scale-[0.98] transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {seeding ? '생성 중...' : '🧪 샘플 데이터 생성'}
+          </button>
+          <button
+            onClick={async () => {
+              setProgressSeeding(true)
+              setProgressSeedResult(null)
+              try {
+                const res = await fetch('/api/admin/seed-progress', {
+                  method: 'POST',
+                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
+                })
+                const result = await res.json()
+                if (result.success) {
+                  const createdCount = result.created_users?.length || 0
+                  const createdHint = createdCount > 0
+                    ? ` (신규 계정 ${createdCount}개 생성, 임시 비밀번호: ${result.sample_password})`
+                    : ''
+                  setProgressSeedResult(`샘플 진도 생성 완료: users ${result.users}명, rows ${result.progress_rows}건${createdHint}`)
+                  window.location.reload()
+                } else {
+                  setProgressSeedResult(`오류: ${result.error}`)
+                }
+              } catch (e: any) {
+                setProgressSeedResult(`연결 실패: ${e.message}`)
+              }
+              setProgressSeeding(false)
+            }}
+            disabled={progressSeeding}
+            className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 active:scale-[0.98] transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {progressSeeding ? '생성 중...' : '📈 샘플 진도 생성'}
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm('샘플 데이터(courses/lessons/progress)를 초기화할까요?')) return
+              setResetting(true)
+              setResetResult(null)
+              try {
+                const res = await fetch('/api/admin/reset-sample', {
+                  method: 'POST',
+                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
+                })
+                const result = await res.json()
+                if (result.success) {
+                  setResetResult('샘플 데이터 초기화 완료')
+                  window.location.reload()
+                } else {
+                  setResetResult(`오류: ${result.error}`)
+                }
+              } catch (e: any) {
+                setResetResult(`연결 실패: ${e.message}`)
+              }
+              setResetting(false)
+            }}
+            disabled={resetting}
+            className="px-4 py-2.5 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 active:scale-[0.98] transition disabled:opacity-50 whitespace-nowrap"
+          >
+            {resetting ? '초기화 중...' : '🗑️ 샘플 데이터 초기화'}
+          </button>
         </div>
         {syncResult && (
           <div className={`mb-4 px-4 py-2.5 rounded-lg text-xs ${syncResult.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
             {syncResult}
+          </div>
+        )}
+        {demoResult && (
+          <div className={`mb-4 px-4 py-2.5 rounded-lg text-xs ${demoResult.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {demoResult}
+          </div>
+        )}
+        {seedResult && (
+          <div className={`mb-4 px-4 py-2.5 rounded-lg text-xs ${seedResult.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {seedResult}
+          </div>
+        )}
+        {progressSeedResult && (
+          <div className={`mb-4 px-4 py-2.5 rounded-lg text-xs ${progressSeedResult.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {progressSeedResult}
+          </div>
+        )}
+        {resetResult && (
+          <div className={`mb-4 px-4 py-2.5 rounded-lg text-xs ${resetResult.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {resetResult}
           </div>
         )}
 
