@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { isDemoMode } from '@/lib/demo-kpi'
 import { useEffect, useState } from 'react'
 
 export default function Navbar() {
@@ -35,9 +36,16 @@ export default function Navbar() {
       {/* PC 상단 네비 */}
       <header className="hidden md:block sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="text-lg font-bold text-slate-900 tracking-tight">
-            📖 LMS
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="text-lg font-bold text-slate-900 tracking-tight">
+              📖 LMS
+            </Link>
+            {isDemoMode() && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                Demo
+              </span>
+            )}
+          </div>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
               <Link

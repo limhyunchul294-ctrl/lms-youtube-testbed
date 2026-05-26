@@ -52,6 +52,18 @@ CRON_SECRET=임의-문자열
 
 Vercel에 배포할 때도 동일한 키를 Environment Variables에 등록하고, **Cron용 `CRON_SECRET`**은 Vercel 프로젝트 설정의 CRON_SECRET과 맞춥니다.
 
+#### 데모 모드 (A안: KPI 화면 전용)
+
+`NEXT_PUBLIC_DEMO_MODE=true`로 두면 **실제 DB와 별개로**, “KPI 목표 달성 가정” 수치가 관리자·수강생 화면에만 표시됩니다. 시연·스크린샷용이며 운영 수치로 사용하지 마세요.
+
+```
+NEXT_PUBLIC_DEMO_MODE=true
+```
+
+- 관리자 `/admin`: `src/components/DemoKpiPanel.tsx` (데이터: `src/lib/demo-kpi.ts`의 `adminDemoKpi`)
+- 수강생 `/dashboard`: `src/components/DemoLearnerKpiStrip.tsx` (`learnerDemoKpi`)
+- 상단 네비에 **Demo** 배지 표시
+
 ### 3. 로컬 실행
 
 ```bash
@@ -208,26 +220,38 @@ src/
 │   ├── course/[id]/
 │   │   └── page.tsx       # 강의 상세 (레슨 목록)
 │   ├── lesson/[id]/
-│   │   └── page.tsx       # 레슨 영상 플레이어
+│   │   └── page.tsx       # 레슨 플레이어 (영상 / 슬라이드)
 │   └── admin/
 │       └── page.tsx       # 관리자 대시보드
 │   └── api/admin/
 │       ├── seed-sample/route.ts   # 샘플 강의/레슨 생성
 │       ├── seed-progress/route.ts # 샘플 진도(계정 자동 생성 포함)
-│       └── reset-sample/route.ts  # 샘플 데이터 초기화
+│       ├── reset-sample/route.ts  # 샘플 데이터 초기화
+│       └── upsert-slide-lesson/route.ts  # 슬라이드 레슨 JSON upsert
 ├── components/
 │   ├── Navbar.tsx         # 네비게이션 (PC+모바일)
-│   └── YouTubePlayer.tsx  # YouTube 플레이어 + 진도 추적
+│   ├── YouTubePlayer.tsx  # YouTube 플레이어 + 진도 추적
+│   └── SlideLessonPlayer.tsx  # 이미지 슬라이드 + 진도 추적
 ├── lib/
 │   ├── supabase.ts        # Supabase 클라이언트
+│   ├── lesson.ts          # 슬라이드 파싱·완료율 헬퍼
 │   └── types.ts           # TypeScript 타입
+docs/
+└── LESSON_AUTOMATION.md   # 레슨·수강·관리자 API 자동화 가이드
 supabase/
 └── schema.sql             # DB 스키마 + RLS + 함수
 ```
 
+## 레슨 유형 (슬라이드)
+
+- `lessons.lesson_type`: `video` | `slides`
+- 슬라이드 레슨은 대용량 영상 없이 이미지·캡션으로 구성 (`docs/LESSON_AUTOMATION.md` 참고)
+- 수강 신청(`enrollments`) 없이는 레슨 페이지 접근 불가
+
 ## 향후 확장
 
-- [ ] 관리자 강의/레슨 CRUD UI (현재는 Supabase 대시보드에서 직접 입력)
+- [ ] 포털 브릿지 SSO (후순위)
+- [ ] 관리자 강의/레슨 CRUD UI (현재는 API·Supabase 시드)
 - [ ] Bunny.net Stream 전환 (콘텐츠 보호 필요 시)
 - [ ] 수강생 북마크 + 타임스탬프 메모
 - [ ] 수료증 자동 발급

@@ -36,6 +36,7 @@
 - NEXT_PUBLIC_ADMIN_EMAIL
 - AIRTABLE_PERSONAL_TOKEN, AIRTABLE_BASE_ID
 - SYNC_API_KEY, NEXT_PUBLIC_SYNC_API_KEY
+- NEXT_PUBLIC_DEMO_MODE (true 시 A안: KPI 데모 패널만 표시, `src/lib/demo-kpi.ts`)
 
 ## 주의사항
 - YouTube 비공개 영상: 콘텐츠 보호 없음, 무료 강의이므로 허용

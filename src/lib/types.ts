@@ -8,11 +8,21 @@ export interface Course {
   created_at: string
 }
 
+export type LessonType = 'video' | 'slides'
+
+export interface SlideItem {
+  image_url: string
+  title?: string
+  caption?: string
+}
+
 export interface Lesson {
   id: string
   course_id: string
   title: string
+  lesson_type: LessonType
   youtube_id: string
+  slides: SlideItem[] | null
   duration_seconds: number
   sort_order: number
   is_free: boolean
@@ -31,6 +41,7 @@ export interface UserProgress {
   user_id: string
   lesson_id: string
   watched_seconds: number
+  last_slide_index: number
   is_completed: boolean
   completed_at: string | null
   updated_at: string
@@ -39,10 +50,13 @@ export interface UserProgress {
 export interface LessonWithProgress {
   lesson_id: string
   lesson_title: string
+  lesson_type: LessonType
   youtube_id: string
   duration_seconds: number
   sort_order: number
+  slide_count: number
   watched_seconds: number
+  last_slide_index: number
   is_completed: boolean
 }
 

@@ -12,6 +12,7 @@ type ProgressSeed = {
   user_email: string
   lesson_id: string
   watched_seconds: number
+  last_slide_index?: number
   is_completed: boolean
 }
 
@@ -19,9 +20,11 @@ const SAMPLE_LESSON_IDS = [
   '11111111-aaaa-1111-aaaa-111111111111',
   '11111111-bbbb-1111-bbbb-111111111111',
   '11111111-cccc-1111-cccc-111111111111',
+  '11111111-dddd-1111-dddd-111111111111',
   '22222222-aaaa-2222-aaaa-222222222222',
   '22222222-bbbb-2222-bbbb-222222222222',
   '22222222-cccc-2222-cccc-222222222222',
+  '22222222-dddd-2222-dddd-222222222222',
 ]
 
 const SAMPLE_USERS = [
@@ -100,15 +103,18 @@ export async function POST(req: Request) {
       { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[0], watched_seconds: 540, is_completed: true },
       { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[1], watched_seconds: 780, is_completed: true },
       { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[2], watched_seconds: 660, is_completed: true },
-      { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[3], watched_seconds: 320, is_completed: false },
+      { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[3], watched_seconds: 0, last_slide_index: 3, is_completed: true },
+      { user_email: 'student1@example.com', lesson_id: SAMPLE_LESSON_IDS[4], watched_seconds: 320, is_completed: false },
       // student2: 골고루 반반
       { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[0], watched_seconds: 270, is_completed: false },
       { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[1], watched_seconds: 520, is_completed: false },
-      { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[3], watched_seconds: 720, is_completed: true },
-      { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[4], watched_seconds: 200, is_completed: false },
+      { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[4], watched_seconds: 720, is_completed: true },
+      { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[5], watched_seconds: 200, is_completed: false },
+      { user_email: 'student2@example.com', lesson_id: SAMPLE_LESSON_IDS[7], watched_seconds: 0, last_slide_index: 1, is_completed: false },
       // student3: 거의 미시작
       { user_email: 'student3@example.com', lesson_id: SAMPLE_LESSON_IDS[0], watched_seconds: 60, is_completed: false },
-      { user_email: 'student3@example.com', lesson_id: SAMPLE_LESSON_IDS[3], watched_seconds: 40, is_completed: false },
+      { user_email: 'student3@example.com', lesson_id: SAMPLE_LESSON_IDS[4], watched_seconds: 40, is_completed: false },
+      { user_email: 'student3@example.com', lesson_id: SAMPLE_LESSON_IDS[3], watched_seconds: 0, last_slide_index: 0, is_completed: false },
     ]
 
     const progressRows = scenario
@@ -119,6 +125,7 @@ export async function POST(req: Request) {
           user_id: userId,
           lesson_id: row.lesson_id,
           watched_seconds: row.watched_seconds,
+          last_slide_index: row.last_slide_index ?? 0,
           is_completed: row.is_completed,
           completed_at: row.is_completed ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),

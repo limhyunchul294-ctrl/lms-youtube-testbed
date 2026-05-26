@@ -21,11 +21,54 @@ type SampleLesson = {
   id: string
   course_id: string
   title: string
+  lesson_type: 'video' | 'slides'
   youtube_id: string
+  slides?: { image_url: string; title?: string; caption?: string }[] | null
   duration_seconds: number
   sort_order: number
   is_free: boolean
 }
+
+const slideDeckEvBasics = [
+  {
+    image_url: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?w=1200&auto=format&fit=crop',
+    title: '전기차 개요',
+    caption: '동력원·충전·회생 제동의 큰 그림',
+  },
+  {
+    image_url: 'https://images.unsplash.com/photo-1593941707882-a5bac983da8a?w=1200&auto=format&fit=crop',
+    title: '구동계 구성',
+    caption: '모터·인버터·감속기 역할',
+  },
+  {
+    image_url: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=1200&auto=format&fit=crop',
+    title: '충전 이해',
+    caption: '완속·급속, kW와 SOC',
+  },
+  {
+    image_url: 'https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=1200&auto=format&fit=crop',
+    title: '정리',
+    caption: '다음 영상 레슨으로 이어집니다',
+  },
+]
+
+const slideDeckBattery = [
+  {
+    image_url: 'https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=1200&auto=format&fit=crop',
+    title: '셀·모듈·팩',
+    caption: '전압·용량 스택 구조',
+  },
+  {
+    image_url: 'https://images.unsplash.com/photo-1620714223081-8713b9803042?w=1200&auto=format&fit=crop',
+    title: 'BMS 역할',
+    caption: 'SOC, SOH, 열·전류 보호',
+  },
+  {
+    image_url: 'https://images.unsplash.com/photo-1581094794329-cd811886a2e7?w=1200&auto=format&fit=crop',
+    title: '안전 점검',
+    caption: '고전압 작업 전 체크리스트',
+  },
+]
 
 const sampleCourses: SampleCourse[] = [
   {
@@ -51,6 +94,7 @@ const sampleLessons: SampleLesson[] = [
     id: '11111111-aaaa-1111-aaaa-111111111111',
     course_id: '11111111-1111-1111-1111-111111111111',
     title: '1강. 전기차와 내연기관의 차이',
+    lesson_type: 'video',
     youtube_id: 'dQw4w9WgXcQ',
     duration_seconds: 540,
     sort_order: 1,
@@ -60,6 +104,7 @@ const sampleLessons: SampleLesson[] = [
     id: '11111111-bbbb-1111-bbbb-111111111111',
     course_id: '11111111-1111-1111-1111-111111111111',
     title: '2강. 구동 모터 기본 구조',
+    lesson_type: 'video',
     youtube_id: 'aqz-KE-bpKQ',
     duration_seconds: 780,
     sort_order: 2,
@@ -69,15 +114,28 @@ const sampleLessons: SampleLesson[] = [
     id: '11111111-cccc-1111-cccc-111111111111',
     course_id: '11111111-1111-1111-1111-111111111111',
     title: '3강. 충전 방식과 전력 이해',
+    lesson_type: 'video',
     youtube_id: 'M7lc1UVf-VE',
     duration_seconds: 660,
     sort_order: 3,
     is_free: true,
   },
   {
+    id: '11111111-dddd-1111-dddd-111111111111',
+    course_id: '11111111-1111-1111-1111-111111111111',
+    title: '4강. 핵심 개념 요약 (슬라이드)',
+    lesson_type: 'slides',
+    youtube_id: '',
+    slides: slideDeckEvBasics,
+    duration_seconds: slideDeckEvBasics.length * 60,
+    sort_order: 4,
+    is_free: true,
+  },
+  {
     id: '22222222-aaaa-2222-aaaa-222222222222',
     course_id: '22222222-2222-2222-2222-222222222222',
     title: '1강. 배터리 셀/모듈/팩 구조',
+    lesson_type: 'video',
     youtube_id: 'ysz5S6PUM-U',
     duration_seconds: 720,
     sort_order: 1,
@@ -87,6 +145,7 @@ const sampleLessons: SampleLesson[] = [
     id: '22222222-bbbb-2222-bbbb-222222222222',
     course_id: '22222222-2222-2222-2222-222222222222',
     title: '2강. BMS 핵심 파라미터',
+    lesson_type: 'video',
     youtube_id: 'ScMzIvxBSi4',
     duration_seconds: 840,
     sort_order: 2,
@@ -96,9 +155,21 @@ const sampleLessons: SampleLesson[] = [
     id: '22222222-cccc-2222-cccc-222222222222',
     course_id: '22222222-2222-2222-2222-222222222222',
     title: '3강. 고전압 안전 점검 체크리스트',
+    lesson_type: 'video',
     youtube_id: 'LXb3EKWsInQ',
     duration_seconds: 690,
     sort_order: 3,
+    is_free: true,
+  },
+  {
+    id: '22222222-dddd-2222-dddd-222222222222',
+    course_id: '22222222-2222-2222-2222-222222222222',
+    title: '4강. 배터리·BMS 요약 (슬라이드)',
+    lesson_type: 'slides',
+    youtube_id: '',
+    slides: slideDeckBattery,
+    duration_seconds: slideDeckBattery.length * 60,
+    sort_order: 4,
     is_free: true,
   },
 ]

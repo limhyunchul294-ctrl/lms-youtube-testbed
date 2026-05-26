@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import DemoLearnerKpiStrip from '@/components/DemoLearnerKpiStrip'
 import type { Course } from '@/lib/types'
 
 interface CourseWithProgress extends Course {
@@ -79,6 +80,8 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-slate-900">내 강의</h1>
           <p className="text-sm text-slate-500 mt-0.5">수강 중인 강의 목록과 진도율을 확인하세요.</p>
         </div>
+
+        <DemoLearnerKpiStrip />
 
         {loading ? (
           <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>

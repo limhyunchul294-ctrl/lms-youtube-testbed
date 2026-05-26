@@ -32,7 +32,14 @@ export default function CourseDetailPage() {
       const { data: lessonsData } = await supabase
         .rpc('get_my_course_progress', { p_course_id: id })
 
-      setLessons(lessonsData || [])
+      setLessons(
+        (lessonsData || []).map((l: LessonWithProgress) => ({
+          ...l,
+          lesson_type: l.lesson_type || 'video',
+          slide_count: l.slide_count ?? 0,
+          last_slide_index: l.last_slide_index ?? 0,
+        }))
+      )
       setLoading(false)
     }
     init()
@@ -115,11 +122,22 @@ export default function CourseDetailPage() {
                 }`}>
                   {lesson.lesson_title}
                 </h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {lesson.duration_seconds > 0 && (
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                    {lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}
+                  </span>
+                  {lesson.lesson_type === 'slides' && lesson.slide_count > 0 && (
+                    <span className="text-xs text-slate-400">
+                      {lesson.slide_count}장
+                      {lesson.last_slide_index > 0 && !lesson.is_completed && (
+                        <> · {lesson.last_slide_index + 1}장까지</>
+                      )}
+                    </span>
+                  )}
+                  {lesson.lesson_type !== 'slides' && lesson.duration_seconds > 0 && (
                     <span className="text-xs text-slate-400">{formatDuration(lesson.duration_seconds)}</span>
                   )}
-                  {lesson.watched_seconds > 0 && !lesson.is_completed && (
+                  {lesson.lesson_type !== 'slides' && lesson.watched_seconds > 0 && !lesson.is_completed && (
                     <span className="text-xs text-blue-500">
                       {formatDuration(lesson.watched_seconds)} 시청
                     </span>

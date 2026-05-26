@@ -18,7 +18,9 @@ create table public.lessons (
   id uuid default gen_random_uuid() primary key,
   course_id uuid references public.courses(id) on delete cascade not null,
   title text not null,
-  youtube_id text not null,
+  lesson_type text not null default 'video' check (lesson_type in ('video', 'slides')),
+  youtube_id text not null default '',
+  slides jsonb default null,
   duration_seconds int default 0,
   sort_order int default 0,
   is_free boolean default false,
@@ -40,6 +42,7 @@ create table public.user_progress (
   user_id uuid references auth.users(id) on delete cascade not null,
   lesson_id uuid references public.lessons(id) on delete cascade not null,
   watched_seconds int default 0,
+  last_slide_index int not null default 0,
   is_completed boolean default false,
   completed_at timestamptz,
   updated_at timestamptz default now(),
@@ -122,10 +125,13 @@ create or replace function public.get_my_course_progress(p_course_id uuid)
 returns table (
   lesson_id uuid,
   lesson_title text,
+  lesson_type text,
   youtube_id text,
   duration_seconds int,
   sort_order int,
+  slide_count int,
   watched_seconds int,
+  last_slide_index int,
   is_completed boolean
 )
 language sql
@@ -134,10 +140,17 @@ as $$
   select
     l.id as lesson_id,
     l.title as lesson_title,
+    l.lesson_type,
     l.youtube_id,
     l.duration_seconds,
     l.sort_order,
+    case
+      when l.lesson_type = 'slides' and l.slides is not null
+      then jsonb_array_length(l.slides)
+      else 0
+    end::int as slide_count,
     coalesce(up.watched_seconds, 0) as watched_seconds,
+    coalesce(up.last_slide_index, 0) as last_slide_index,
     coalesce(up.is_completed, false) as is_completed
   from public.lessons l
   left join public.user_progress up on up.lesson_id = l.id and up.user_id = auth.uid()
