@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED_PREFIXES = ['/dashboard', '/courses', '/course', '/lesson', '/activity']
+const PROTECTED_PREFIXES = ['/dashboard', '/courses', '/course', '/lesson', '/activity', '/admin']
 const AUTH_PAGES = ['/', '/auth/gsw', '/auth/complete']
 
 export async function middleware(request: NextRequest) {

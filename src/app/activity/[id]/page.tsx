@@ -1,0 +1,412 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import AppShell from '@/components/layout/AppShell'
+import { createClient } from '@/lib/supabase'
+import type { ActivityType, CourseActivity } from '@/lib/types'
+
+type ExamQuestion = {
+  id: string
+  label: string
+  options: string[]
+  correct: number
+}
+
+type EvalQuestion = {
+  id: string
+  label: string
+  type: 'rating' | 'text'
+  max?: number
+  optional?: boolean
+}
+
+export default function ActivityPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const supabase = createClient()
+  const [activity, setActivity] = useState<CourseActivity | null>(null)
+  const [courseTitle, setCourseTitle] = useState('')
+  const [answers, setAnswers] = useState<Record<string, string | number>>({})
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [gateMessage, setGateMessage] = useState<string | null>(null)
+  const [gateLink, setGateLink] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<{ passed: boolean; score?: number; message: string } | null>(
+    null
+  )
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/')
+        return
+      }
+
+      const { data: act } = await supabase
+        .from('course_activities')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (!act) {
+        router.push('/dashboard')
+        return
+      }
+
+      setActivity(act as CourseActivity)
+
+      const { data: course } = await supabase
+        .from('courses')
+        .select('title')
+        .eq('id', act.course_id)
+        .single()
+      setCourseTitle(course?.title || '')
+
+      // 수강 신청 여부 1차 가드
+      const { data: enrollment } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('course_id', act.course_id)
+        .maybeSingle()
+
+      if (!enrollment) {
+        setGateMessage('먼저 수강 신청 후 이 활동을 이용할 수 있습니다.')
+        setGateLink(`/course/${act.course_id}`)
+        setLoading(false)
+        return
+      }
+
+      // 흐름 가드 계산 (guide → lessons 완료 → evaluation → exam)
+      let guideAcknowledged = false
+      let lessonsComplete = false
+      let evaluationPassed = false
+
+      try {
+        const { data: guideAct } = await supabase
+          .from('course_activities')
+          .select('id')
+          .eq('course_id', act.course_id)
+          .eq('activity_type', 'guide')
+          .maybeSingle()
+
+        if (guideAct?.id) {
+          const { data: guideSub } = await supabase
+            .from('activity_submissions')
+            .select('answers')
+            .eq('activity_id', guideAct.id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          guideAcknowledged = (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
+        }
+
+        // RPC가 없을 수도 있어(마이그레이션 전) fallback을 둡니다.
+        const { data: st } = await supabase.rpc('get_course_learning_status', { p_course_id: act.course_id })
+        lessonsComplete = !!st?.[0]?.lessons_complete
+
+        const { data: evalAct } = await supabase
+          .from('course_activities')
+          .select('id')
+          .eq('course_id', act.course_id)
+          .eq('activity_type', 'evaluation')
+          .maybeSingle()
+
+        if (evalAct?.id) {
+          const { data: evalSub } = await supabase
+            .from('activity_submissions')
+            .select('passed')
+            .eq('activity_id', evalAct.id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          evaluationPassed = evalSub?.passed === true
+        }
+      } catch (e) {
+        console.warn('activity gate status failed', e)
+      }
+
+      const allowed =
+        act.activity_type === 'guide'
+          ? true // guide는 수강 신청만 되면 접근 허용
+          : act.activity_type === 'evaluation'
+            ? guideAcknowledged && lessonsComplete
+            : guideAcknowledged && lessonsComplete && evaluationPassed
+
+      if (!allowed) {
+        if (act.activity_type === 'evaluation') {
+          setGateMessage('먼저 강의 안내를 확인하고, 영상 수강을 모두 완료한 후에 만족도 평가를 제출할 수 있습니다.')
+          setGateLink(`/course/${act.course_id}`)
+        } else if (act.activity_type === 'exam') {
+          setGateMessage('평가를 완료하고(합격 기준 충족) 영상 수강을 모두 완료한 후에 시험을 제출할 수 있습니다.')
+          setGateLink(`/course/${act.course_id}`)
+        } else {
+          setGateMessage('이 활동은 아직 이용할 수 없습니다.')
+          setGateLink(`/course/${act.course_id}`)
+        }
+        setLoading(false)
+        return
+      }
+
+      const { data: sub } = await supabase
+        .from('activity_submissions')
+        .select('*')
+        .eq('activity_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (sub?.answers && typeof sub.answers === 'object') {
+        const a = sub.answers as Record<string, unknown>
+        if (a.acknowledged) setAcknowledged(true)
+        setResult(
+          sub.passed != null
+            ? {
+                passed: !!sub.passed,
+                score: sub.score ?? undefined,
+                message: sub.passed ? '이미 완료했습니다.' : '제출 기록이 있습니다.',
+              }
+            : null
+        )
+      }
+
+      setLoading(false)
+    }
+    init()
+  }, [id, router, supabase])
+
+  const submit = async () => {
+    if (!activity) return
+    setSubmitting(true)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    let payload: Record<string, unknown> = {}
+    let score: number | null = null
+    let passed: boolean | null = null
+
+    if (activity.activity_type === 'guide') {
+      if (!acknowledged) {
+        setSubmitting(false)
+        return
+      }
+      payload = { acknowledged: true }
+      passed = true
+    } else if (activity.activity_type === 'evaluation') {
+      const questions = (activity.config?.questions as EvalQuestion[]) || []
+      payload = { ...answers }
+      passed = questions.every((q) => {
+        if (q.optional) return true
+        return answers[q.id] !== undefined && answers[q.id] !== ''
+      })
+      score = passed ? 100 : 0
+    } else if (activity.activity_type === 'exam') {
+      const questions = (activity.config?.questions as ExamQuestion[]) || []
+      const passScore = Number(activity.config?.pass_score ?? 70)
+      let correct = 0
+      questions.forEach((q) => {
+        if (Number(answers[q.id]) === q.correct) correct++
+      })
+      score = questions.length ? Math.round((correct / questions.length) * 100) : 0
+      passed = score >= passScore
+      payload = { ...answers, correct_count: correct, total: questions.length }
+    }
+
+    const { error } = await supabase.from('activity_submissions').upsert(
+      {
+        user_id: user.id,
+        activity_id: activity.id,
+        answers: payload,
+        score,
+        passed,
+        submitted_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,activity_id' }
+    )
+
+    setSubmitting(false)
+    if (error) {
+      setResult({ passed: false, message: error.message })
+      return
+    }
+
+    setResult({
+      passed: !!passed,
+      score: score ?? undefined,
+      message: passed
+        ? activity.activity_type === 'exam'
+          ? `합격입니다. (${score}점)`
+          : '제출이 완료되었습니다.'
+        : activity.activity_type === 'exam'
+          ? `불합격입니다. (${score}점) — 다시 응시할 수 있습니다.`
+          : '필수 항목을 모두 입력해 주세요.',
+    })
+  }
+
+  if (loading || !activity) {
+    return (
+      <AppShell>
+        <div className="text-center py-20 text-sm text-[var(--text-muted)]">불러오는 중…</div>
+      </AppShell>
+    )
+  }
+
+  const typeLabel: Record<ActivityType, string> = {
+    guide: '강의 안내',
+    evaluation: '강의 평가',
+    exam: '시험',
+  }
+
+  const sections = (activity.config?.sections as { title: string; body: string }[]) || []
+  const evalQuestions = (activity.config?.questions as EvalQuestion[]) || []
+  const examQuestions = (activity.config?.questions as ExamQuestion[]) || []
+
+  return (
+    <AppShell
+      title={activity.title}
+      subtitle={`${courseTitle} · ${typeLabel[activity.activity_type]}`}
+    >
+      <Link
+        href={`/course/${activity.course_id}`}
+        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block"
+      >
+        ← 강의 허브로
+      </Link>
+
+      {activity.description && (
+        <p className="text-sm text-[var(--text-muted)] mb-6">{activity.description}</p>
+      )}
+
+      {gateMessage && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-medium mb-1">진입 제한</p>
+          <p className="text-[var(--text-muted)] whitespace-pre-wrap">{gateMessage}</p>
+          {gateLink && (
+            <Link
+              href={gateLink}
+              className="mt-3 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              필수 단계로 이동 →
+            </Link>
+          )}
+        </div>
+      )}
+
+      {!gateMessage && activity.activity_type === 'guide' && (
+        <div className="space-y-4 mb-6">
+          {sections.map((s, i) => (
+            <section key={i} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <h2 className="font-semibold text-[var(--text)]">{s.title}</h2>
+              <p className="text-sm text-[var(--text-muted)] mt-2 whitespace-pre-wrap">{s.body}</p>
+            </section>
+          ))}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              className="mt-1"
+            />
+            <span>위 안내 내용을 확인했으며, 수강 규정에 동의합니다.</span>
+          </label>
+        </div>
+      )}
+
+      {!gateMessage && activity.activity_type === 'evaluation' && (
+        <div className="space-y-5 mb-6">
+          {evalQuestions.map((q) => (
+            <div key={q.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <p className="text-sm font-medium text-[var(--text)] mb-3">{q.label}</p>
+              {q.type === 'rating' ? (
+                <div className="flex gap-2 flex-wrap">
+                  {Array.from({ length: q.max || 5 }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setAnswers((a) => ({ ...a, [q.id]: n }))}
+                      className={`h-10 w-10 rounded-lg text-sm font-medium border ${
+                        answers[q.id] === n
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                          : 'border-[var(--border)]'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm min-h-[80px]"
+                  value={(answers[q.id] as string) || ''}
+                  onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!gateMessage && activity.activity_type === 'exam' && (
+        <div className="space-y-5 mb-6">
+          <p className="text-xs text-[var(--text-muted)]">
+            합격 기준: {Number(activity.config?.pass_score ?? 70)}점 이상
+          </p>
+          {examQuestions.map((q, qi) => (
+            <fieldset key={q.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+              <legend className="text-sm font-medium text-[var(--text)] mb-3">
+                {qi + 1}. {q.label}
+              </legend>
+              <div className="space-y-2">
+                {q.options.map((opt, oi) => (
+                  <label key={oi} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="radio"
+                      name={q.id}
+                      checked={Number(answers[q.id]) === oi}
+                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: oi }))}
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+        </div>
+      )}
+
+      {result && (
+        <div
+          className={`mb-4 rounded-lg px-4 py-3 text-sm ${
+            result.passed ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'
+          }`}
+        >
+          {result.message}
+        </div>
+      )}
+
+      {!gateMessage && !result?.passed && (
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={submit}
+          className="w-full md:w-auto px-6 py-2.5 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {submitting ? '제출 중…' : activity.activity_type === 'exam' ? '시험 제출' : '제출하기'}
+        </button>
+      )}
+
+      {result?.passed && (
+        <Link
+          href={`/course/${activity.course_id}`}
+          className="inline-block mt-4 text-sm font-medium text-[var(--accent)] hover:underline"
+        >
+          강의 허브로 돌아가기 →
+        </Link>
+      )}
+    </AppShell>
+  )
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import Navbar from '@/components/Navbar'
+import AppShell from '@/components/layout/AppShell'
 import YouTubePlayer from '@/components/YouTubePlayer'
 import SlideLessonPlayer from '@/components/SlideLessonPlayer'
 import { parseSlides } from '@/lib/lesson'
@@ -17,6 +17,7 @@ export default function LessonPage() {
   const [prevNext, setPrevNext] = useState<{ prev: string | null; next: string | null }>({ prev: null, next: null })
   const [completed, setCompleted] = useState(false)
   const [accessError, setAccessError] = useState<string | null>(null)
+  const [guideActivityId, setGuideActivityId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
@@ -55,6 +56,37 @@ export default function LessonPage() {
         return
       }
 
+      // 학습 흐름 강제: 먼저 "강의 안내(guide)"를 확인해야 영상/슬라이드 레슨을 볼 수 있습니다.
+      try {
+        const { data: guideAct } = await supabase
+          .from('course_activities')
+          .select('id')
+          .eq('course_id', lessonData.course_id)
+          .eq('activity_type', 'guide')
+          .maybeSingle()
+
+        if (guideAct?.id) {
+          setGuideActivityId(guideAct.id)
+          const { data: guideSub } = await supabase
+            .from('activity_submissions')
+            .select('answers')
+            .eq('activity_id', guideAct.id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+          const ack = (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
+          if (!ack) {
+            setAccessError('먼저 강의 안내(수강 규정)를 확인해 주세요.')
+            setLoading(false)
+            return
+          }
+        }
+      } catch (e) {
+        // 마이그레이션이 아직 적용되지 않은 상태에서는 테이블 조회가 실패할 수 있습니다.
+        // 이 경우 UX 테스트를 위해 기존 enrolment만으로 레슨 접근을 허용합니다.
+        console.warn('guide access check failed', e)
+      }
+
       const { data: progressData } = await supabase
         .from('user_progress')
         .select('*')
@@ -87,8 +119,9 @@ export default function LessonPage() {
   if (loading) {
     return (
       <>
-        <Navbar />
-        <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>
+        <AppShell>
+          <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>
+        </AppShell>
       </>
     )
   }
@@ -96,16 +129,27 @@ export default function LessonPage() {
   if (accessError && lesson) {
     return (
       <>
-        <Navbar />
-        <main className="max-w-3xl mx-auto px-4 md:px-6 py-6 text-center">
-          <p className="text-sm text-slate-600 mb-4">{accessError}</p>
-          <Link
-            href={`/course/${lesson.course_id}`}
-            className="inline-block text-sm text-blue-600 font-medium hover:underline"
-          >
-            강의 상세로 이동 →
-          </Link>
-        </main>
+        <AppShell title={lesson.title} subtitle={lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}>
+          <div className="max-w-3xl mx-auto px-1 md:px-0 py-2 text-center">
+            <p className="text-sm text-slate-600 mb-4">{accessError}</p>
+
+            {guideActivityId ? (
+              <Link
+                href={`/activity/${guideActivityId}`}
+                className="inline-block mr-3 text-sm text-[var(--accent)] font-medium hover:underline"
+              >
+                강의 안내로 이동 →
+              </Link>
+            ) : null}
+
+            <Link
+              href={`/course/${lesson.course_id}`}
+              className="inline-block text-sm text-blue-600 font-medium hover:underline"
+            >
+              강의 상세로 이동 →
+            </Link>
+          </div>
+        </AppShell>
       </>
     )
   }
@@ -113,8 +157,9 @@ export default function LessonPage() {
   if (!lesson) {
     return (
       <>
-        <Navbar />
-        <div className="text-center py-20 text-slate-400 text-sm">레슨을 찾을 수 없습니다.</div>
+        <AppShell>
+          <div className="text-center py-20 text-slate-400 text-sm">레슨을 찾을 수 없습니다.</div>
+        </AppShell>
       </>
     )
   }
@@ -123,9 +168,8 @@ export default function LessonPage() {
   const slides = lesson.slides || []
 
   return (
-    <>
-      <Navbar />
-      <main className="max-w-3xl mx-auto px-4 md:px-6 py-6">
+    <AppShell title={lesson.title} subtitle={isSlides ? '슬라이드' : '영상'}>
+      <div className="max-w-3xl mx-auto px-1 md:px-0">
         <Link
           href={`/course/${lesson.course_id}`}
           className="text-xs text-slate-400 hover:text-slate-600 mb-3 inline-block"
@@ -187,7 +231,7 @@ export default function LessonPage() {
             </Link>
           )}
         </div>
-      </main>
-    </>
+      </div>
+    </AppShell>
   )
 }

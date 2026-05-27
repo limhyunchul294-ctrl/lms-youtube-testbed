@@ -5,7 +5,7 @@ export interface Course {
   thumbnail_url: string | null
   is_published: boolean
   sort_order: number
-  created_at: string
+  created_at?: string
 }
 
 export type LessonType = 'video' | 'slides'
@@ -26,25 +26,12 @@ export interface Lesson {
   duration_seconds: number
   sort_order: number
   is_free: boolean
-  created_at: string
-}
-
-export interface Enrollment {
-  id: string
-  user_id: string
-  course_id: string
-  enrolled_at: string
 }
 
 export interface UserProgress {
-  id: string
-  user_id: string
-  lesson_id: string
   watched_seconds: number
-  last_slide_index: number
   is_completed: boolean
-  completed_at: string | null
-  updated_at: string
+  last_slide_index?: number
 }
 
 export interface LessonWithProgress {
@@ -54,10 +41,19 @@ export interface LessonWithProgress {
   youtube_id: string
   duration_seconds: number
   sort_order: number
-  slide_count: number
   watched_seconds: number
-  last_slide_index: number
   is_completed: boolean
+  slide_count: number
+  last_slide_index: number
+}
+
+export interface CourseProgressRow {
+  user_id: string
+  user_email: string
+  course_id: string
+  course_title: string
+  total_lessons: number
+  completed_lessons: number
 }
 
 export interface AdminProgress {
@@ -66,4 +62,37 @@ export interface AdminProgress {
   total_lessons: number
   completed_lessons: number
   progress_pct: number
+}
+
+export type ActivityType = 'guide' | 'evaluation' | 'exam'
+
+export interface CourseActivity {
+  id: string
+  course_id: string
+  activity_type: ActivityType
+  title: string
+  description: string | null
+  config: Record<string, unknown>
+  sort_order: number
+  is_required: boolean
+}
+
+export interface ActivitySubmission {
+  id: string
+  user_id: string
+  activity_id: string
+  answers: Record<string, unknown>
+  score: number | null
+  passed: boolean | null
+  submitted_at: string
+}
+
+export interface CourseLearningStatus {
+  total_lessons: number
+  completed_lessons: number
+  total_required_activities: number
+  completed_required_activities: number
+  lessons_complete: boolean
+  activities_complete: boolean
+  course_complete: boolean
 }

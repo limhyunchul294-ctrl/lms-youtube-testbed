@@ -94,15 +94,16 @@ curl -X POST "http://localhost:3000/api/admin/seed-evkmc" \
 
 ---
 
-## 시험·설문 (다음 단계)
+## 시험·설문·수료
 
-| docx | 연결 코스 |
-|------|-----------|
-| 친환경차 기본원리 시험 30제 | 친환경차 코스 수료 전 |
-| 고전압 안전교육 시험 60제 | 고전압 코스 수료 전 |
-| 만족도 설문 | 7강 완료 후 또는 전체 수료 후 |
+| 기능 | 경로 / API |
+|------|------------|
+| 강의 안내·평가·시험 | `/course/[id]` 로드맵 → `/activity/[id]` |
+| 시험 30/60문항 시드 | `/admin/activities` 버튼 또는 `POST /api/admin/import-exam-questions` |
+| 수료증 | `/course/[id]/certificate` (수료 후) |
+| 가이드 | `docs/EXAM_IMPORT.md` |
 
-문항 DB는 별도 모듈 예정 (`test, servey` 폴더 docx 기준).
+docx → JSON 변환은 관리자 UI/API로 반영 (`test, servey` 폴더 docx 기준).
 
 ---
 

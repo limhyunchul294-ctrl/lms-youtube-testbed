@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 function GswBridgeInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'loading' | 'error'>('loading')
   const [message, setMessage] = useState('GSW 계정으로 LMS에 연결하는 중입니다…')
+  const requestedRef = useRef(false)
 
   useEffect(() => {
+    if (requestedRef.current) return
+    requestedRef.current = true
+
     const token = searchParams.get('token')
     if (!token) {
       setStatus('error')
@@ -25,11 +30,25 @@ function GswBridgeInner() {
       })
       const data = await res.json()
       if (!res.ok) {
+        // 간헐 실패 시 이미 세션이 생성된 케이스를 한번 더 확인
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (session) {
+          router.replace('/dashboard')
+          return
+        }
         setStatus('error')
         setMessage(data.error || '연동에 실패했습니다.')
         return
       }
-      router.replace(data.redirect || '/dashboard')
+      const redirect = String(data.redirect || '/dashboard')
+      if (redirect.startsWith('http')) {
+        window.location.assign(redirect)
+        return
+      }
+      router.replace(redirect)
     }
 
     run()

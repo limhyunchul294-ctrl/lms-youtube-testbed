@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveGswBridgeSecret, verifyGswBridgeToken } from '@/lib/gsw-bridge'
-import { createServerSupabase, createServiceSupabase } from '@/lib/supabase-server'
+import { EVKMC_COURSE_ID_LIST } from '@/lib/evkmc'
+import { createServiceSupabase } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   const secret = resolveGswBridgeSecret(process.env.GSW_BRIDGE_SECRET)
@@ -8,7 +9,7 @@ export async function POST(req: NextRequest) {
   let token: string | undefined
   try {
     const body = await req.json()
-    token = body.token
+    token = typeof body?.token === 'string' ? body.token : undefined
   } catch {
     return NextResponse.json({ error: '요청 본문이 올바르지 않습니다.' }, { status: 400 })
   }
@@ -36,8 +37,17 @@ export async function POST(req: NextRequest) {
   let userId = profileByGsw?.id
 
   if (!userId) {
+    const { data: profileByEmail } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+    userId = profileByEmail?.id
+  }
+
+  if (!userId) {
     const { data: listData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
-    const existing = listData.users.find((u) => u.email?.toLowerCase() === normalizedEmail)
+    const existing = listData?.users?.find((u) => u.email?.toLowerCase() === normalizedEmail)
     userId = existing?.id
   }
 
@@ -72,6 +82,23 @@ export async function POST(req: NextRequest) {
     { onConflict: 'id' }
   )
 
+  // EVKMC 운영 코스 자동 수강 신청 (GSW 최초·재접속 모두 idempotent)
+  const enrollRows = EVKMC_COURSE_ID_LIST.map((course_id) => ({
+    user_id: userId,
+    course_id,
+  }))
+  await admin.from('enrollments').upsert(enrollRows, { onConflict: 'user_id,course_id' })
+
+  // 기존 사용자 메타데이터도 브릿지 payload 기준으로 동기화
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      full_name: name || normalizedEmail.split('@')[0],
+      gsw_user_id,
+      department: department || null,
+      source: 'gsw',
+    },
+  })
+
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email: normalizedEmail,
@@ -87,21 +114,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const supabase = await createServerSupabase()
-  const { error: verifyError } = await supabase.auth.verifyOtp({
-    type: 'email',
-    token_hash: linkData.properties.hashed_token,
-  })
-
-  if (verifyError) {
-    return NextResponse.json({ error: verifyError.message }, { status: 500 })
+  const actionLink = linkData.properties.action_link
+  if (!actionLink) {
+    return NextResponse.json({ error: '세션 액션 링크를 가져오지 못했습니다.' }, { status: 500 })
   }
 
   return NextResponse.json({
     ok: true,
     user_id: userId,
     email: normalizedEmail,
-    redirect: '/dashboard',
+    redirect: actionLink,
   })
 }
 

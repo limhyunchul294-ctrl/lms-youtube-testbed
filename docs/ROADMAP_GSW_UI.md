@@ -65,14 +65,16 @@ NEXT_PUBLIC_GSW_BRIDGE_ALLOW_DEV=false
 
 ---
 
-## 2차 (예정)
+## 2차 (진행·완료)
 
-- [ ] GSW 실제 API 스펙 반영 (사용자 조회·토큰 발급 엔드포인트)
-- [ ] 동적 워터마크 (플레이어 오버레이)
-- [ ] 시험 문항 docx → DB 일괄 import
-- [ ] 관리자: 활동·문항 편집 UI
-- [ ] 수료증 PDF / 이메일 알림
-- [ ] 기술문서 포털 메뉴 «교육 센터» iframe vs 새 탭 정책
+- [x] GSW 브릿지 + EVKMC 코스 자동 수강 신청
+- [x] 동적 워터마크 (플레이어 오버레이)
+- [x] 시험 문항 은행 + import API + 관리자 UI (`/admin/activities`)
+- [x] 수료증 화면 (인쇄/PDF) `/course/[id]/certificate`
+- [x] 데모 샘플 코스 목록에서 숨김
+- [ ] docx → JSON 자동 변환 스크립트 (수동 JSON/API로 대체 가능)
+- [ ] 수료 이메일 알림
+- [ ] 기술문서 포털 «교육 센터» iframe vs 새 탭 정책 (GSW 팀)
 
 ---
 

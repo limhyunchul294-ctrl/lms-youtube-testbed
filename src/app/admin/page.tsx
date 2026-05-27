@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import Navbar from '@/components/Navbar'
+import AppShell from '@/components/layout/AppShell'
+import Link from 'next/link'
 import DemoKpiPanel from '@/components/DemoKpiPanel'
 import type { AdminProgress } from '@/lib/types'
 
@@ -71,13 +72,13 @@ export default function AdminPage() {
   }
 
   return (
-    <>
-      <Navbar />
-      <main className="max-w-5xl mx-auto px-4 md:px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-slate-900">수강 관리</h1>
-          <p className="text-sm text-slate-500 mt-0.5">수강생별 강의 진도 현황을 확인합니다.</p>
-        </div>
+    <AppShell title="수강 관리" subtitle="수강생별 강의 진도 현황">
+        <Link
+          href="/admin/activities"
+          className="inline-block mb-4 text-sm font-medium text-[var(--accent)] hover:underline"
+        >
+          활동·시험 관리 →
+        </Link>
 
         {/* A안: 데모 모드일 때만 KPI 목표 달성 가정치 표시 (실제 DB와 무관) */}
         <DemoKpiPanel />
@@ -361,7 +362,6 @@ export default function AdminPage() {
             </div>
           </>
         )}
-      </main>
-    </>
+    </AppShell>
   )
 }

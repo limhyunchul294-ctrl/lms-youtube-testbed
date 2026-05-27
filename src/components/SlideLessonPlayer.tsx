@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import {
   isSlideLessonComplete,
@@ -28,7 +28,38 @@ export default function SlideLessonPlayer({
   const [furthestIndex, setFurthestIndex] = useState(Math.max(safeStart, initialSlideIndex))
   const [completed, setCompleted] = useState(false)
   const touchStartX = useRef<number | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
+  const [watermarkUser, setWatermarkUser] = useState('')
+  const [watermarkTs, setWatermarkTs] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      let label = user.email || user.id
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (profile?.display_name) label = profile.display_name
+      } catch {
+        // 마이그레이션/테이블이 아직 없을 수 있습니다.
+      }
+      setWatermarkUser(label)
+    }
+
+    load()
+    setWatermarkTs(new Date().toISOString().slice(0, 19).replace('T', ' '))
+    const timer = setInterval(() => {
+      setWatermarkTs(new Date().toISOString().slice(0, 19).replace('T', ' '))
+    }, 10000)
+    return () => clearInterval(timer)
+  }, [supabase])
 
   const saveProgress = useCallback(
     async (index: number, markComplete: boolean) => {
@@ -121,6 +152,11 @@ export default function SlideLessonPlayer({
         }}
       >
         <div className="relative aspect-[16/10] md:aspect-video bg-slate-800">
+          {watermarkUser && (
+            <div className="absolute right-3 top-3 z-20 pointer-events-none select-none bg-black/45 text-white px-2.5 py-1 rounded-md text-[10px] font-mono">
+              EVKMC · {watermarkUser} · {watermarkTs}
+            </div>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={slide.image_url}
