@@ -1,0 +1,103 @@
+{
+  "channel": "EVKMC_LMS",
+  "uploaded_at": "2024-05-27",
+  "visibility": "unlisted",
+  "courses": [
+    {
+      "id": "33333333-1111-1111-1111-111111111111",
+      "title": "친환경차 기본원리 이해하기",
+      "description": "EVKMC 전기차 AS 교육 — 친환경차(전기차·하이브리드·수소 등) 기본 개념과 구성을 학습합니다.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1593941707882-a5bac983da8a?w=800&auto=format&fit=crop",
+      "is_published": true,
+      "sort_order": 1
+    },
+    {
+      "id": "33333333-2222-2222-2222-222222222222",
+      "title": "고전압 안전교육",
+      "description": "EVKMC 전기차 AS 교육 — 고전압 시스템 작업·안전 절차·보호 장비를 학습합니다.",
+      "thumbnail_url": "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=800&auto=format&fit=crop",
+      "is_published": true,
+      "sort_order": 2
+    }
+  ],
+  "lessons": [
+    {
+      "id": "33333333-1001-1001-1001-100110011001",
+      "course_id": "33333333-1111-1111-1111-111111111111",
+      "sort_order": 1,
+      "title": "1강. 친환경차 기본원리 이해하기",
+      "youtube_studio_title": "[1강] 전기자동차 AS 교육: 친환경차 기본원리 이해하기 | EVKMC LMS",
+      "duration_mmss": "22:43",
+      "duration_seconds": 1363,
+      "youtube_id": "OzxQl_Qo89k",
+      "copyright_notice": false
+    },
+    {
+      "id": "33333333-1002-1002-1002-100210021002",
+      "course_id": "33333333-1111-1111-1111-111111111111",
+      "sort_order": 2,
+      "title": "2강. 친환경차 기본원리 이해하기",
+      "youtube_studio_title": "[2강] 전기자동차 AS 교육: 친환경차 기본원리 이해하기 | EVKMC LMS",
+      "duration_mmss": "18:58",
+      "duration_seconds": 1138,
+      "youtube_id": "b4Pq9YOyRdM",
+      "copyright_notice": false
+    },
+    {
+      "id": "33333333-1003-1003-1003-100310031003",
+      "course_id": "33333333-1111-1111-1111-111111111111",
+      "sort_order": 3,
+      "title": "3강. 친환경차 기본원리 이해하기",
+      "youtube_studio_title": "[3강] 전기자동차 AS 교육: 친환경차 기본원리 이해하기 | EVKMC LMS",
+      "duration_mmss": "19:54",
+      "duration_seconds": 1194,
+      "youtube_id": "pvfTWbIXQ18",
+      "copyright_notice": true
+    },
+    {
+      "id": "33333333-1004-1004-1004-100410041004",
+      "course_id": "33333333-2222-2222-2222-222222222222",
+      "sort_order": 1,
+      "title": "4강. 고전압 안전교육",
+      "youtube_studio_title": "[4강] 전기자동차 AS 교육: 고전압 안전교육 | EVKMC LMS",
+      "duration_mmss": "43:46",
+      "duration_seconds": 2626,
+      "youtube_id": "OUlk9rd7Ujc",
+      "copyright_notice": true
+    },
+    {
+      "id": "33333333-1005-1005-1005-100510051005",
+      "course_id": "33333333-2222-2222-2222-222222222222",
+      "sort_order": 2,
+      "title": "5강. 고전압 안전교육",
+      "youtube_studio_title": "[5강] 전기자동차 AS 교육: 고전압 안전교육 | EVKMC LMS",
+      "duration_mmss": "31:26",
+      "duration_seconds": 1886,
+      "youtube_id": "GoscHgddqSo",
+      "copyright_notice": false
+    },
+    {
+      "id": "33333333-1006-1006-1006-100610061006",
+      "course_id": "33333333-2222-2222-2222-222222222222",
+      "sort_order": 3,
+      "title": "6강. 고전압 안전교육",
+      "youtube_studio_title": "[6강] 전기자동차 AS 교육: 고전압 안전교육 | EVKMC LMS",
+      "duration_mmss": "31:24",
+      "duration_seconds": 1884,
+      "youtube_id": "SzTt6Ui0X_I",
+      "copyright_notice": true
+    },
+    {
+      "id": "33333333-1007-1007-1007-100710071007",
+      "course_id": "33333333-2222-2222-2222-222222222222",
+      "sort_order": 4,
+      "title": "7강. 고전압 안전교육",
+      "youtube_studio_title": "[7강] 전기자동차 AS 교육: 고전압 안전교육 | EVKMC LMS",
+      "duration_mmss": "36:17",
+      "duration_seconds": 2177,
+      "youtube_id": "jcRfuJNobwU",
+      "copyright_notice": false
+    }
+  ],
+  "youtube_id_fill_guide": "Studio → 동영상 → 세부정보 → URL의 v= 뒤 11자리. 또는 공유 링크에서 추출."
+}

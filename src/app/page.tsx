@@ -12,8 +12,14 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const supabase = createClient()
   const router = useRouter()
+  const missingSupabaseEnv =
+    !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (missingSupabaseEnv) {
+      setMessage('서버 설정 오류: Supabase URL/키가 배포 환경에 없습니다. Vercel 환경변수를 확인하세요.')
+      return
+    }
     e.preventDefault()
     setLoading(true)
     setMessage('')
@@ -67,6 +73,12 @@ export default function LoginPage() {
               회원가입
             </button>
           </div>
+
+          {missingSupabaseEnv && (
+            <p className="mb-4 text-xs text-center text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Supabase 연결 설정이 없어 로그인할 수 없습니다. 관리자에게 Vercel env 설정을 요청하세요.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
