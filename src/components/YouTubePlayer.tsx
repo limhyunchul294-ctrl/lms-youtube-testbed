@@ -68,8 +68,11 @@ export default function YouTubePlayer({
         playerRef.current.destroy()
       }
       playerRef.current = new window.YT.Player('yt-player', {
+        host: 'https://www.youtube-nocookie.com',
         videoId: youtubeId,
         playerVars: {
+          enablejsapi: 1,
+          origin: window.location.origin,
           modestbranding: 1,
           rel: 0,
           showinfo: 0,
