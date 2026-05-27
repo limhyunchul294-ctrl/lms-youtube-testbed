@@ -15,3 +15,6 @@ supabase/.temp/
 .vercel
 .env*.local
 .env.pbd.txt
+
+# Untracked content drafts for documentation/review
+test, servey/
