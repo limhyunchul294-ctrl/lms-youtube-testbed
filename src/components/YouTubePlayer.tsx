@@ -16,8 +16,11 @@ interface Props {
   lessonId: string
   durationSeconds: number
   initialWatched?: number
+  initialCompleted?: boolean
   onComplete?: () => void
 }
+
+const COMPLETION_RATIO = 0.9
 
 let apiReadyQueue: Array<() => void> = []
 let apiLoading = false
@@ -49,20 +52,29 @@ export default function YouTubePlayer({
   lessonId,
   durationSeconds,
   initialWatched = 0,
+  initialCompleted = false,
   onComplete,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const completedRef = useRef(initialCompleted)
+  const completionSavedRef = useRef(initialCompleted)
+  const onCompleteRef = useRef(onComplete)
+  const durationRef = useRef(durationSeconds)
+  const startSecondsRef = useRef(initialWatched > 10 ? initialWatched - 5 : 0)
+
   const [currentTime, setCurrentTime] = useState(initialWatched)
   const [videoDuration, setVideoDuration] = useState(durationSeconds)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [completed, setCompleted] = useState(false)
+  const [completed, setCompleted] = useState(initialCompleted)
   const [embedBlocked, setEmbedBlocked] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
-  const watchUrl = `https://www.youtube.com/watch?v=${youtubeId}`
+  onCompleteRef.current = onComplete
+  durationRef.current = videoDuration > 0 ? videoDuration : durationSeconds
 
+  const watchUrl = `https://www.youtube.com/watch?v=${youtubeId}`
   const effectiveDuration = videoDuration > 0 ? videoDuration : durationSeconds
 
   const saveProgress = useCallback(
@@ -88,6 +100,18 @@ export default function YouTubePlayer({
     [lessonId, supabase]
   )
 
+  const markLessonComplete = useCallback(
+    (seconds: number) => {
+      if (completionSavedRef.current) return
+      completionSavedRef.current = true
+      completedRef.current = true
+      setCompleted(true)
+      saveProgress(seconds, true)
+      onCompleteRef.current?.()
+    },
+    [saveProgress]
+  )
+
   const stopTracking = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -100,21 +124,28 @@ export default function YouTubePlayer({
     intervalRef.current = setInterval(() => {
       if (!playerRef.current?.getCurrentTime) return
       const t = playerRef.current.getCurrentTime()
-      const dur = playerRef.current.getDuration() || effectiveDuration
-      if (dur > 0 && dur !== videoDuration) setVideoDuration(Math.floor(dur))
+      const dur = playerRef.current.getDuration() || durationRef.current
+      if (dur > 0) durationRef.current = dur
       setCurrentTime(Math.floor(t))
 
       if (Math.floor(t) % 30 === 0) {
         saveProgress(t, false)
       }
 
-      if (dur > 0 && t / dur >= 0.9 && !completed) {
-        setCompleted(true)
-        saveProgress(t, true)
-        onComplete?.()
+      if (dur > 0 && t / dur >= COMPLETION_RATIO && !completionSavedRef.current) {
+        markLessonComplete(t)
       }
     }, 1000)
-  }, [completed, effectiveDuration, onComplete, saveProgress, videoDuration])
+  }, [markLessonComplete, saveProgress])
+
+  const saveProgressRef = useRef(saveProgress)
+  saveProgressRef.current = saveProgress
+  const markCompleteRef = useRef(markLessonComplete)
+  markCompleteRef.current = markLessonComplete
+  const startTrackingRef = useRef(startTracking)
+  startTrackingRef.current = startTracking
+  const stopTrackingRef = useRef(stopTracking)
+  stopTrackingRef.current = stopTracking
 
   useEffect(() => {
     const origin = window.location.origin
@@ -134,7 +165,6 @@ export default function YouTubePlayer({
           enablejsapi: 1,
           origin,
           widget_referrer: origin,
-          /** Studio «플레이어 컨트롤 표시» 해제와 동일 — 재생 버튼만 노출 */
           controls: 0,
           modestbranding: 1,
           rel: 0,
@@ -142,24 +172,36 @@ export default function YouTubePlayer({
           disablekb: 1,
           fs: 0,
           iv_load_policy: 3,
-          start: initialWatched > 10 ? initialWatched - 5 : 0,
+          start: startSecondsRef.current,
           playsinline: 1,
         },
         events: {
           onReady: (e: { target: { getDuration: () => number } }) => {
             const dur = e.target.getDuration()
-            if (dur > 0) setVideoDuration(Math.floor(dur))
+            if (dur > 0) {
+              durationRef.current = dur
+              setVideoDuration(Math.floor(dur))
+            }
           },
           onStateChange: (e: { data: number; target: { getCurrentTime: () => number } }) => {
             if (e.data === window.YT.PlayerState.PLAYING) {
               setEmbedBlocked(false)
               setIsPlaying(true)
-              startTracking()
+              startTrackingRef.current()
             } else {
               setIsPlaying(false)
-              stopTracking()
+              stopTrackingRef.current()
               if (e.data === window.YT.PlayerState.PAUSED) {
-                saveProgress(e.target.getCurrentTime(), false)
+                saveProgressRef.current(e.target.getCurrentTime(), false)
+              }
+              if (e.data === window.YT.PlayerState.ENDED) {
+                const t = e.target.getCurrentTime()
+                setCurrentTime(Math.floor(t))
+                if (!completionSavedRef.current) {
+                  markCompleteRef.current(t)
+                } else {
+                  saveProgressRef.current(t, false)
+                }
               }
             }
           },
@@ -176,11 +218,11 @@ export default function YouTubePlayer({
 
     return () => {
       cancelled = true
-      stopTracking()
+      stopTrackingRef.current()
       playerRef.current?.destroy()
       playerRef.current = null
     }
-  }, [youtubeId, initialWatched, saveProgress, startTracking, stopTracking])
+  }, [youtubeId])
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60)
@@ -189,7 +231,7 @@ export default function YouTubePlayer({
   }
 
   const progressPct = videoWatchPercent(currentTime, effectiveDuration)
-  const completionTargetPct = 90
+  const completionTargetPct = Math.round(COMPLETION_RATIO * 100)
 
   return (
     <div>
@@ -203,11 +245,6 @@ export default function YouTubePlayer({
           <p className="mt-1 text-xs text-amber-800/90">
             YouTube에서 <strong>임베드(다른 사이트 삽입)</strong>가 꺼져 있으면 LMS에서 재생되지 않습니다.
           </p>
-          <ol className="mt-2 list-decimal list-inside space-y-1 text-xs text-amber-900/90">
-            <li>YouTube Studio → <strong>콘텐츠</strong></li>
-            <li>영상 선택 → <strong>편집</strong> → <strong>삽입(임베드)</strong> → <strong>켜기</strong></li>
-            <li>퍼가기 시 <strong>플레이어 컨트롤 표시</strong>는 LMS에서 별도 적용됩니다</li>
-          </ol>
           <a
             href={watchUrl}
             target="_blank"
@@ -244,7 +281,7 @@ export default function YouTubePlayer({
         <div className="flex flex-wrap justify-between items-center gap-2 mt-2 text-xs text-[var(--text-muted)]">
           <span>
             {completed
-              ? '수강 완료 처리됨'
+              ? '수강 완료 — 끝까지 시청 가능합니다'
               : `완료 기준 ${completionTargetPct}% 이상 시청`}
           </span>
           {completed && (
@@ -256,8 +293,7 @@ export default function YouTubePlayer({
       </div>
 
       <p className="mt-2 text-xs text-slate-400">
-        영상은 재생·일시정지만 가능합니다(진도 바·볼륨 등 YouTube 컨트롤 숨김). 이 페이지에서 시청해야
-        진도가 기록됩니다.
+        영상은 재생·일시정지만 가능합니다. 완료 처리 후에도 끝까지 시청할 수 있습니다.
       </p>
     </div>
   )

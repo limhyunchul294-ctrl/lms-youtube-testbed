@@ -222,6 +222,7 @@ export default function LessonPage() {
             lessonId={lesson.id}
             durationSeconds={lesson.duration_seconds}
             initialWatched={progress?.watched_seconds}
+            initialCompleted={progress?.is_completed ?? false}
             onComplete={() => setCompleted(true)}
           />
         )}
