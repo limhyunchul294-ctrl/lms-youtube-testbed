@@ -84,7 +84,7 @@ export default function CertificatePage() {
 
   if (!allowed) {
     return (
-      <AppShell title="수료증" subtitle={course?.title}>
+      <AppShell title="수료증" subtitle={course?.title} showWatermark={false}>
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           수료 조건(영상·평가·시험)을 모두 완료한 후 수료증을 발급받을 수 있습니다.
         </div>
@@ -99,7 +99,7 @@ export default function CertificatePage() {
   }
 
   return (
-    <AppShell title="수료증" subtitle={course?.title}>
+    <AppShell title="수료증" subtitle={course?.title} showWatermark={false}>
       <div className="print:hidden mb-4 flex gap-2">
         <button
           type="button"

@@ -68,7 +68,7 @@ NEXT_PUBLIC_GSW_BRIDGE_ALLOW_DEV=false
 ## 2차 (진행·완료)
 
 - [x] GSW 브릿지 + EVKMC 코스 자동 수강 신청
-- [x] 동적 워터마크 (플레이어 오버레이)
+- [x] 페이지 배경 워터마크 (GSW 스타일, 영상 위 오버레이 없음)
 - [x] 시험 문항 은행 + import API + 관리자 UI (`/admin/activities`)
 - [x] 수료증 화면 (인쇄/PDF) `/course/[id]/certificate`
 - [x] 데모 샘플 코스 목록에서 숨김

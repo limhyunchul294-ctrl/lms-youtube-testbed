@@ -58,41 +58,8 @@ export default function YouTubePlayer({
   const [completed, setCompleted] = useState(false)
   const [embedBlocked, setEmbedBlocked] = useState(false)
   const supabase = useMemo(() => createClient(), [])
-  const [watermarkUser, setWatermarkUser] = useState('')
-  const [watermarkTs, setWatermarkTs] = useState('')
 
   const watchUrl = `https://www.youtube.com/watch?v=${youtubeId}`
-
-  // 동적 워터마크(사용자 식별 + 시간). YouTube iframe 위에 오버레이로 표시합니다.
-  useEffect(() => {
-    const load = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      let label = user.email || user.id
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('id', user.id)
-          .maybeSingle()
-        if (profile?.display_name) label = profile.display_name
-      } catch {
-        // 마이그레이션/테이블이 아직 없을 수 있습니다.
-      }
-
-      setWatermarkUser(label)
-    }
-
-    load()
-    setWatermarkTs(new Date().toISOString().slice(0, 19).replace('T', ' '))
-    const timer = setInterval(() => {
-      setWatermarkTs(new Date().toISOString().slice(0, 19).replace('T', ' '))
-    }, 10000)
-    return () => clearInterval(timer)
-  }, [supabase])
 
   const saveProgress = useCallback(
     async (seconds: number, markComplete: boolean) => {
@@ -214,11 +181,6 @@ export default function YouTubePlayer({
     <div>
       <div className="video-wrapper">
         <div ref={containerRef} className="absolute inset-0" />
-        {watermarkUser && (
-          <div className="absolute left-3 bottom-3 z-20 pointer-events-none select-none bg-black/45 text-white px-2.5 py-1 rounded-md text-[10px] font-mono">
-            EVKMC · {watermarkUser} · {watermarkTs}
-          </div>
-        )}
       </div>
 
       {embedBlocked && (

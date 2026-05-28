@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import PageWatermark from '@/components/layout/PageWatermark'
 
 const NAV = [
   { href: '/dashboard', label: '내 학습', icon: '📚' },
@@ -15,10 +16,13 @@ export default function AppShell({
   children,
   title,
   subtitle,
+  showWatermark = true,
 }: {
   children: React.ReactNode
   title?: string
   subtitle?: string
+  /** 학습 페이지 배경 워터마크 (영상 위 오버레이 아님) */
+  showWatermark?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -125,16 +129,19 @@ export default function AppShell({
           </button>
         </header>
 
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 md:px-8 py-6 md:py-8">
-          {(title || subtitle) && (
-            <header className="mb-6 md:mb-8">
-              {title && <h1 className="text-xl md:text-2xl font-bold text-[var(--text)]">{title}</h1>}
-              {subtitle && (
-                <p className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</p>
-              )}
-            </header>
-          )}
-          {children}
+        <main className="relative flex-1 max-w-6xl w-full mx-auto px-4 md:px-8 py-6 md:py-8 overflow-hidden">
+          {showWatermark && <PageWatermark />}
+          <div className="relative z-[1] min-h-0">
+            {(title || subtitle) && (
+              <header className="mb-6 md:mb-8">
+                {title && <h1 className="text-xl md:text-2xl font-bold text-[var(--text)]">{title}</h1>}
+                {subtitle && (
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</p>
+                )}
+              </header>
+            )}
+            {children}
+          </div>
         </main>
 
         <nav className="md:hidden mobile-nav border-t border-[var(--border)] bg-[var(--card)]">
