@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import CourseLearningPath, { type LearningStep } from '@/components/course/CourseLearningPath'
 import { coursePath, lessonPath, activityPath, publicRef } from '@/lib/routes'
+import { slideProgressPercent, videoWatchPercent } from '@/lib/lesson'
 import { resolveCourseId, shouldRedirectToSlug } from '@/lib/resolve-ref'
 import type {
   Course,
@@ -321,12 +322,40 @@ export default function CourseDetailPage() {
                   <span className="text-[10px] uppercase text-[var(--text-muted)]">
                     {lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}
                   </span>
-                  {lesson.duration_seconds > 0 && (
+                  {lesson.duration_seconds > 0 && lesson.lesson_type !== 'slides' && (
                     <span className="text-xs text-[var(--text-muted)]">
                       {formatDuration(lesson.duration_seconds)}
                     </span>
                   )}
                 </div>
+                {!locked && !lesson.is_completed && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 progress-bar h-1.5 max-w-[140px]">
+                      <div
+                        className="progress-bar-fill"
+                        style={{
+                          width: `${
+                            lesson.lesson_type === 'slides'
+                              ? slideProgressPercent(
+                                  lesson.last_slide_index,
+                                  lesson.slide_count || 1
+                                )
+                              : videoWatchPercent(
+                                  lesson.watched_seconds,
+                                  lesson.duration_seconds
+                                )
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-[var(--accent)] tabular-nums shrink-0">
+                      {lesson.lesson_type === 'slides'
+                        ? slideProgressPercent(lesson.last_slide_index, lesson.slide_count || 1)
+                        : videoWatchPercent(lesson.watched_seconds, lesson.duration_seconds)}
+                      %
+                    </span>
+                  </div>
+                )}
               </div>
               {!locked && <span className="text-slate-300 self-center">›</span>}
             </>

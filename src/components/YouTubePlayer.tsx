@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
+import { videoWatchPercent } from '@/lib/lesson'
 
 declare global {
   interface Window {
@@ -54,12 +55,15 @@ export default function YouTubePlayer({
   const playerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [currentTime, setCurrentTime] = useState(initialWatched)
+  const [videoDuration, setVideoDuration] = useState(durationSeconds)
   const [isPlaying, setIsPlaying] = useState(false)
   const [completed, setCompleted] = useState(false)
   const [embedBlocked, setEmbedBlocked] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   const watchUrl = `https://www.youtube.com/watch?v=${youtubeId}`
+
+  const effectiveDuration = videoDuration > 0 ? videoDuration : durationSeconds
 
   const saveProgress = useCallback(
     async (seconds: number, markComplete: boolean) => {
@@ -96,7 +100,8 @@ export default function YouTubePlayer({
     intervalRef.current = setInterval(() => {
       if (!playerRef.current?.getCurrentTime) return
       const t = playerRef.current.getCurrentTime()
-      const dur = playerRef.current.getDuration() || durationSeconds
+      const dur = playerRef.current.getDuration() || effectiveDuration
+      if (dur > 0 && dur !== videoDuration) setVideoDuration(Math.floor(dur))
       setCurrentTime(Math.floor(t))
 
       if (Math.floor(t) % 30 === 0) {
@@ -109,7 +114,7 @@ export default function YouTubePlayer({
         onComplete?.()
       }
     }, 1000)
-  }, [completed, durationSeconds, onComplete, saveProgress])
+  }, [completed, effectiveDuration, onComplete, saveProgress, videoDuration])
 
   useEffect(() => {
     const origin = window.location.origin
@@ -129,13 +134,22 @@ export default function YouTubePlayer({
           enablejsapi: 1,
           origin,
           widget_referrer: origin,
+          /** Studio «플레이어 컨트롤 표시» 해제와 동일 — 재생 버튼만 노출 */
+          controls: 0,
           modestbranding: 1,
           rel: 0,
           cc_load_policy: 1,
+          disablekb: 1,
+          fs: 0,
+          iv_load_policy: 3,
           start: initialWatched > 10 ? initialWatched - 5 : 0,
           playsinline: 1,
         },
         events: {
+          onReady: (e: { target: { getDuration: () => number } }) => {
+            const dur = e.target.getDuration()
+            if (dur > 0) setVideoDuration(Math.floor(dur))
+          },
           onStateChange: (e: { data: number; target: { getCurrentTime: () => number } }) => {
             if (e.data === window.YT.PlayerState.PLAYING) {
               setEmbedBlocked(false)
@@ -174,8 +188,8 @@ export default function YouTubePlayer({
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const progressPct =
-    durationSeconds > 0 ? Math.min((currentTime / durationSeconds) * 100, 100) : 0
+  const progressPct = videoWatchPercent(currentTime, effectiveDuration)
+  const completionTargetPct = 90
 
   return (
     <div>
@@ -188,13 +202,11 @@ export default function YouTubePlayer({
           <p className="font-medium">이 페이지에서는 재생할 수 없습니다</p>
           <p className="mt-1 text-xs text-amber-800/90">
             YouTube에서 <strong>임베드(다른 사이트 삽입)</strong>가 꺼져 있으면 LMS에서 재생되지 않습니다.
-            YouTube에서는 직접 재생은 되어도 임베드만 막을 수 있습니다.
           </p>
           <ol className="mt-2 list-decimal list-inside space-y-1 text-xs text-amber-900/90">
             <li>YouTube Studio → <strong>콘텐츠</strong></li>
-            <li>영상 7개 선택(또는 상단 전체 선택)</li>
-            <li><strong>편집</strong> → <strong>삽입(임베드)</strong> → <strong>켜기</strong> → 업데이트</li>
-            <li>각 영상에서도 <strong>세부정보 → 더보기</strong> → 라이선스·배포 → <strong>삽입 허용</strong> 확인</li>
+            <li>영상 선택 → <strong>편집</strong> → <strong>삽입(임베드)</strong> → <strong>켜기</strong></li>
+            <li>퍼가기 시 <strong>플레이어 컨트롤 표시</strong>는 LMS에서 별도 적용됩니다</li>
           </ol>
           <a
             href={watchUrl}
@@ -202,23 +214,38 @@ export default function YouTubePlayer({
             rel="noopener noreferrer"
             className="mt-3 inline-block text-xs font-medium text-blue-700 underline"
           >
-            YouTube에서 직접 보기 (진도는 이 페이지 시청 시에만 기록됨)
+            YouTube에서 직접 보기
           </a>
         </div>
       )}
 
-      <div className="mt-3 space-y-1.5">
-        <div className="progress-bar">
+      <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 sm:p-4">
+        <div className="flex items-end justify-between gap-3 mb-2">
+          <div>
+            <p className="text-xs font-medium text-[var(--text-muted)]">수강 진도</p>
+            <p className="text-2xl sm:text-3xl font-bold text-[var(--accent)] tabular-nums">
+              {progressPct}
+              <span className="text-lg font-semibold">%</span>
+            </p>
+          </div>
+          <div className="text-right text-xs text-[var(--text-muted)] tabular-nums">
+            <p>{isPlaying ? '▶ 재생 중' : '⏸ 일시정지'}</p>
+            <p className="mt-0.5">
+              {formatTime(currentTime)} / {formatTime(effectiveDuration)}
+            </p>
+          </div>
+        </div>
+        <div className="progress-bar" style={{ height: 10 }}>
           <div
             className={`progress-bar-fill ${completed ? 'complete' : ''}`}
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <div className="flex justify-between items-center text-xs text-slate-500">
+        <div className="flex flex-wrap justify-between items-center gap-2 mt-2 text-xs text-[var(--text-muted)]">
           <span>
-            {isPlaying ? '▶ 재생 중' : '⏸ 일시정지'}
-            {' · '}
-            {formatTime(currentTime)} / {formatTime(durationSeconds)}
+            {completed
+              ? '수강 완료 처리됨'
+              : `완료 기준 ${completionTargetPct}% 이상 시청`}
           </span>
           {completed && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">
@@ -229,9 +256,8 @@ export default function YouTubePlayer({
       </div>
 
       <p className="mt-2 text-xs text-slate-400">
-        LMS 도메인: <span className="font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}</span>
-        {' · '}
-        이 페이지에서 시청해야 진도가 기록됩니다.
+        영상은 재생·일시정지만 가능합니다(진도 바·볼륨 등 YouTube 컨트롤 숨김). 이 페이지에서 시청해야
+        진도가 기록됩니다.
       </p>
     </div>
   )

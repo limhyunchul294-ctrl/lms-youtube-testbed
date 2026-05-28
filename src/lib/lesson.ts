@@ -17,6 +17,12 @@ export function parseSlides(raw: unknown): SlideItem[] {
     }))
 }
 
+/** 영상 레슨: 시청 위치 기준 진도율(0~100) */
+export function videoWatchPercent(watchedSeconds: number, durationSeconds: number): number {
+  if (durationSeconds <= 0) return 0
+  return Math.min(Math.round((watchedSeconds / durationSeconds) * 100), 100)
+}
+
 /** slides 레슨: 도달한 슬라이드 기준 진도율(0~100) */
 export function slideProgressPercent(furthestIndex: number, totalSlides: number): number {
   if (totalSlides <= 0) return 0
