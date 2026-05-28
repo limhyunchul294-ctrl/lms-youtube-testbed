@@ -280,10 +280,9 @@ export default function YouTubePlayer({
       }
     }
 
-    // 3) 최종 fallback: YouTube 원본 열기(앱/브라우저 전체화면 사용)
-    setFullscreenHint('모바일 브라우저 제한으로 앱/새 탭에서 전체화면 재생을 사용해 주세요.')
-    window.open(watchUrl, '_blank', 'noopener,noreferrer')
-  }, [watchUrl])
+    // 3) 최종 fallback: 외부 이동 없이 LMS 내 안내만 표시
+    setFullscreenHint('이 기기/브라우저에서는 전체화면이 제한됩니다. LMS 화면에서 계속 시청해 주세요.')
+  }, [])
 
   useEffect(() => {
     const onFullscreenChange = () => {
