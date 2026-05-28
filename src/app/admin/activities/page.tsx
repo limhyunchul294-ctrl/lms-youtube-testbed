@@ -21,8 +21,6 @@ export default function AdminActivitiesPage() {
   const [saving, setSaving] = useState(false)
   const [advanced, setAdvanced] = useState(false)
 
-  const syncKey = process.env.NEXT_PUBLIC_SYNC_API_KEY || ''
-
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -67,7 +65,7 @@ export default function AdminActivitiesPage() {
       const config = JSON.parse(configJson)
       const res = await fetch('/api/admin/upsert-activity', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-sync-key': syncKey },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: selected.id,
           course_id: selected.course_id,
@@ -97,7 +95,7 @@ export default function AdminActivitiesPage() {
     try {
       const res = await fetch('/api/admin/import-exam-questions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-sync-key': syncKey },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ course_id: courseId, use_bank: true, question_count: count }),
       })
       const data = await res.json()

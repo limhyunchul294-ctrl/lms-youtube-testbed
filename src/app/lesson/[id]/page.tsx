@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import YouTubePlayer from '@/components/YouTubePlayer'
 import SlideLessonPlayer from '@/components/SlideLessonPlayer'
+import NextActionBanner from '@/components/course/NextActionBanner'
 import { parseSlides } from '@/lib/lesson'
 import { activityPath, coursePath, lessonPath, publicRef } from '@/lib/routes'
 import { resolveLessonId, shouldRedirectToSlug } from '@/lib/resolve-ref'
@@ -208,6 +209,19 @@ export default function LessonPage() {
             {isSlides ? '슬라이드' : '영상'}
           </span>
         </div>
+        {!completed ? (
+          <NextActionBanner
+            title="현재 강의를 90% 이상 수강해 주세요."
+            detail="완료 처리되면 다음 강의 버튼이 강조됩니다."
+          />
+        ) : (
+          <NextActionBanner
+            title="강의가 완료되었습니다."
+            detail={prevNext.next ? '다음 강의로 이동해 학습을 이어가세요.' : '코스 허브에서 평가/시험 단계로 이동하세요.'}
+            href={prevNext.next || hubHref}
+            ctaLabel={prevNext.next ? '다음 강의' : '강의 허브'}
+          />
+        )}
 
         {isSlides ? (
           <SlideLessonPlayer

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireAdminAccess } from '@/lib/admin-auth'
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -86,8 +87,12 @@ export async function POST(req: Request) {
   const syncKey = req.headers.get('x-sync-key') || new URL(req.url).searchParams.get('key') || bearerToken
   const allowedKeys = [process.env.SYNC_API_KEY, process.env.CRON_SECRET].filter(Boolean)
 
-  if (!syncKey || !allowedKeys.includes(syncKey)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const hasValidKey = !!syncKey && allowedKeys.includes(syncKey)
+  if (!hasValidKey) {
+    const auth = await requireAdminAccess()
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   try {

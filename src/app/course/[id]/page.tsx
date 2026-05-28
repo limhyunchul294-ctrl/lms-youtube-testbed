@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import CourseLearningPath, { type LearningStep } from '@/components/course/CourseLearningPath'
+import NextActionBanner from '@/components/course/NextActionBanner'
 import { coursePath, lessonPath, activityPath, publicRef } from '@/lib/routes'
 import { slideProgressPercent, videoWatchPercent } from '@/lib/lesson'
 import { resolveCourseId, shouldRedirectToSlug } from '@/lib/resolve-ref'
@@ -232,6 +233,7 @@ export default function CourseDetailPage() {
   }
 
   const guideAct = activities.find((a) => a.activity_type === 'guide')
+  const nextStep = learningSteps.find((s) => s.status === 'available' || s.status === 'in_progress')
 
   return (
     <AppShell title={course?.title || '강의'} subtitle={course?.description || undefined}>
@@ -261,6 +263,14 @@ export default function CourseDetailPage() {
             수료증 보기 · 인쇄 →
           </Link>
         </div>
+      )}
+      {!status?.course_complete && nextStep && (
+        <NextActionBanner
+          title={nextStep.label}
+          detail={nextStep.detail}
+          href={nextStep.href !== '#' ? nextStep.href : undefined}
+          ctaLabel={nextStep.status === 'in_progress' ? '이어하기' : '시작하기'}
+        />
       )}
 
       <div className="grid gap-6 lg:grid-cols-5 mb-8">

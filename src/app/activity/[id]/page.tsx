@@ -7,6 +7,7 @@ import AppShell from '@/components/layout/AppShell'
 import GuideContent from '@/components/activity/GuideContent'
 import EvaluationForm, { type EvalQuestion } from '@/components/activity/EvaluationForm'
 import ExamForm, { type ExamQuestion } from '@/components/activity/ExamForm'
+import NextActionBanner from '@/components/course/NextActionBanner'
 import { createClient } from '@/lib/supabase'
 import { activityPath, coursePath } from '@/lib/routes'
 import { resolveActivityId, shouldRedirectToSlug } from '@/lib/resolve-ref'
@@ -271,6 +272,12 @@ export default function ActivityPage() {
   const evalQuestions = (activity.config?.questions as EvalQuestion[]) || []
   const examQuestions = (activity.config?.questions as ExamQuestion[]) || []
   const hubHref = coursePath(courseRef)
+  const nextTitle =
+    activity.activity_type === 'guide'
+      ? '강의 안내를 확인한 뒤 영상 학습으로 이동해 주세요.'
+      : activity.activity_type === 'evaluation'
+        ? '평가 제출 후 온라인 시험 단계로 이동합니다.'
+        : '시험 완료 후 수료증 발급 여부를 확인해 주세요.'
 
   return (
     <AppShell
@@ -286,6 +293,14 @@ export default function ActivityPage() {
 
       {activity.description && (
         <p className="text-sm text-[var(--text-muted)] mb-6">{activity.description}</p>
+      )}
+      {!gateMessage && (
+        <NextActionBanner
+          title={nextTitle}
+          detail={result?.passed ? '현재 단계가 완료되었습니다. 다음 단계로 이동하세요.' : '제출 전 필수 항목을 확인해 주세요.'}
+          href={result?.passed ? hubHref : undefined}
+          ctaLabel="강의 허브"
+        />
       )}
 
       {gateMessage && (

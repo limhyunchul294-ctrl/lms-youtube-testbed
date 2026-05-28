@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requireAdminAccess } from '@/lib/admin-auth'
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -175,10 +176,8 @@ const sampleLessons: SampleLesson[] = [
 ]
 
 export async function POST(req: Request) {
-  const syncKey = req.headers.get('x-sync-key') || new URL(req.url).searchParams.get('key')
-  if (syncKey !== process.env.SYNC_API_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAdminAccess()
+  if (!auth.ok) return auth.response
 
   try {
     const supabase = getSupabaseAdminClient()

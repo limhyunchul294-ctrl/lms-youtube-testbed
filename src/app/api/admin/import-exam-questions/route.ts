@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceSupabase } from '@/lib/supabase-server'
+import { requireAdminAccess } from '@/lib/admin-auth'
 import {
   EVKMC_COURSE_IDS,
   EVKMC_EXAM_ACTIVITY_IDS,
   isEvkmcCourseId,
 } from '@/lib/evkmc'
 import { getEcoExamQuestions, getHvExamQuestions } from '@/data/evkmc-exam-banks'
-
-function checkKey(req: NextRequest) {
-  const key = req.headers.get('x-sync-key') || req.nextUrl.searchParams.get('key')
-  return key && key === process.env.SYNC_API_KEY
-}
 
 type ExamQuestion = {
   id: string
@@ -20,9 +16,8 @@ type ExamQuestion = {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkKey(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAdminAccess()
+  if (!auth.ok) return auth.response
 
   try {
     let body: {

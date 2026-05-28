@@ -113,25 +113,20 @@ export default function AdminPage() {
               setDemoPreparing(true)
               setDemoResult(null)
               try {
-                const commonHeaders = { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' }
-
                 const seedCourseRes = await fetch('/api/admin/seed-sample', {
                   method: 'POST',
-                  headers: commonHeaders,
                 })
                 const seedCourseJson = await seedCourseRes.json()
                 if (!seedCourseJson.success) throw new Error(seedCourseJson.error || '샘플 강의 생성 실패')
 
                 const seedProgressRes = await fetch('/api/admin/seed-progress', {
                   method: 'POST',
-                  headers: commonHeaders,
                 })
                 const seedProgressJson = await seedProgressRes.json()
                 if (!seedProgressJson.success) throw new Error(seedProgressJson.error || '샘플 진도 생성 실패')
 
                 const syncRes = await fetch('/api/sync/airtable', {
                   method: 'POST',
-                  headers: commonHeaders,
                 })
                 const syncJson = await syncRes.json()
                 if (!syncJson.success) throw new Error(syncJson.error || 'Airtable 동기화 실패')
@@ -159,7 +154,6 @@ export default function AdminPage() {
               try {
                 const res = await fetch('/api/sync/airtable', {
                   method: 'POST',
-                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
                 })
                 const result = await res.json()
                 if (result.success) {
@@ -184,7 +178,6 @@ export default function AdminPage() {
               try {
                 const res = await fetch('/api/admin/seed-sample', {
                   method: 'POST',
-                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
                 })
                 const result = await res.json()
                 if (result.success) {
@@ -210,7 +203,6 @@ export default function AdminPage() {
               try {
                 const res = await fetch('/api/admin/seed-progress', {
                   method: 'POST',
-                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
                 })
                 const result = await res.json()
                 if (result.success) {
@@ -241,7 +233,6 @@ export default function AdminPage() {
               try {
                 const res = await fetch('/api/admin/reset-sample', {
                   method: 'POST',
-                  headers: { 'x-sync-key': process.env.NEXT_PUBLIC_SYNC_API_KEY || '' },
                 })
                 const result = await res.json()
                 if (result.success) {
