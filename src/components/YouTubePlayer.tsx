@@ -55,6 +55,7 @@ export default function YouTubePlayer({
   initialCompleted = false,
   onComplete,
 }: Props) {
+  const playerFrameRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -69,6 +70,7 @@ export default function YouTubePlayer({
   const [isPlaying, setIsPlaying] = useState(false)
   const [completed, setCompleted] = useState(initialCompleted)
   const [embedBlocked, setEmbedBlocked] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   onCompleteRef.current = onComplete
@@ -233,9 +235,43 @@ export default function YouTubePlayer({
   const progressPct = videoWatchPercent(currentTime, effectiveDuration)
   const completionTargetPct = Math.round(COMPLETION_RATIO * 100)
 
+  const toggleFullscreen = useCallback(async () => {
+    const frame = playerFrameRef.current
+    if (!frame) return
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      return
+    }
+
+    if (frame.requestFullscreen) {
+      await frame.requestFullscreen()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreenChange)
+    }
+  }, [])
+
   return (
     <div>
-      <div className="video-wrapper">
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:bg-slate-50 touch-manipulation"
+        >
+          {isFullscreen ? '전체화면 종료' : '전체화면'}
+        </button>
+      </div>
+
+      <div ref={playerFrameRef} className="video-wrapper">
         <div ref={containerRef} className="absolute inset-0" />
       </div>
 
