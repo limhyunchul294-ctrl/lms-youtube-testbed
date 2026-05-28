@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: verified.error }, { status: 401 })
   }
 
-  const { email, name, gsw_user_id, department } = verified.payload
+  const { email, name, gsw_user_id, department, employee_no, employee_id, position, company } =
+    verified.payload
+  const employeeNo = employee_no || employee_id
   const admin = createServiceSupabase()
   const normalizedEmail = email.trim().toLowerCase()
 
@@ -58,6 +60,10 @@ export async function POST(req: NextRequest) {
       user_metadata: {
         full_name: name || '',
         gsw_user_id,
+        department: department || null,
+        employee_no: employeeNo || null,
+        position: position || null,
+        company: company || null,
         source: 'gsw',
       },
     })
@@ -77,6 +83,9 @@ export async function POST(req: NextRequest) {
       display_name: name || normalizedEmail.split('@')[0],
       department: department || null,
       gsw_user_id,
+      employee_no: employeeNo || null,
+      position: position || null,
+      company: company || null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' }
@@ -95,6 +104,9 @@ export async function POST(req: NextRequest) {
       full_name: name || normalizedEmail.split('@')[0],
       gsw_user_id,
       department: department || null,
+      employee_no: employeeNo || null,
+      position: position || null,
+      company: company || null,
       source: 'gsw',
     },
   })

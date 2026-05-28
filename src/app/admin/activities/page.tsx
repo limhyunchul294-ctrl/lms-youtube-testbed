@@ -7,6 +7,8 @@ import AppShell from '@/components/layout/AppShell'
 import { createClient } from '@/lib/supabase'
 import { EVKMC_COURSE_IDS } from '@/lib/evkmc'
 import type { CourseActivity } from '@/lib/types'
+import ActivityVisualEditor from '@/components/admin/ActivityVisualEditor'
+import { publicRef } from '@/lib/routes'
 
 export default function AdminActivitiesPage() {
   const router = useRouter()
@@ -17,6 +19,7 @@ export default function AdminActivitiesPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [advanced, setAdvanced] = useState(false)
 
   const syncKey = process.env.NEXT_PUBLIC_SYNC_API_KEY || ''
 
@@ -126,7 +129,7 @@ export default function AdminActivitiesPage() {
   }
 
   return (
-    <AppShell title="활동·시험 관리" subtitle="강의 안내 / 만족도 평가 / 시험 문항 config 편집">
+    <AppShell title="활동·시험 관리" subtitle="화면 미리보기로 편집 · 상세 수정 시 JSON config">
       <Link href="/admin" className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block">
         ← 수강 관리
       </Link>
@@ -177,7 +180,9 @@ export default function AdminActivitiesPage() {
             >
               <span className="text-[10px] uppercase text-[var(--text-muted)]">{act.activity_type}</span>
               <p className="font-medium text-[var(--text)] mt-0.5">{act.title}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 truncate">{act.id}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
+                {act.slug || publicRef(act)}
+              </p>
             </button>
           ))}
         </div>
@@ -186,14 +191,12 @@ export default function AdminActivitiesPage() {
           {selected ? (
             <>
               <h2 className="font-semibold text-[var(--text)]">{selected.title}</h2>
-              <p className="text-xs text-[var(--text-muted)] mt-1 mb-3">
-                config JSON — exam: pass_score, questions[] / evaluation: questions[] / guide: sections[]
-              </p>
-              <textarea
-                value={configJson}
-                onChange={(e) => setConfigJson(e.target.value)}
-                className="w-full h-[420px] font-mono text-xs border border-[var(--border)] rounded-lg p-3"
-                spellCheck={false}
+              <ActivityVisualEditor
+                activity={selected}
+                configJson={configJson}
+                onConfigJsonChange={setConfigJson}
+                advanced={advanced}
+                onAdvancedChange={setAdvanced}
               />
               <button
                 type="button"

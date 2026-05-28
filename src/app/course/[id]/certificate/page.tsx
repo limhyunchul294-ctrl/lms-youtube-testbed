@@ -5,15 +5,19 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
 import { createClient } from '@/lib/supabase'
+import { coursePath } from '@/lib/routes'
+import { resolveCourseId, shouldRedirectToSlug } from '@/lib/resolve-ref'
 import type { Course, CourseLearningStatus } from '@/lib/types'
 
 export default function CertificatePage() {
-  const { id } = useParams<{ id: string }>()
+  const { id: ref } = useParams<{ id: string }>()
   const router = useRouter()
   const supabase = createClient()
   const [course, setCourse] = useState<Course | null>(null)
+  const [courseRef, setCourseRef] = useState('')
   const [learnerName, setLearnerName] = useState('')
   const [department, setDepartment] = useState('')
+  const [employeeNo, setEmployeeNo] = useState('')
   const [completedAt, setCompletedAt] = useState('')
   const [allowed, setAllowed] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -26,26 +30,46 @@ export default function CertificatePage() {
         return
       }
 
-      const { data: courseData } = await supabase.from('courses').select('*').eq('id', id).single()
+      const resolved = await resolveCourseId(supabase, ref)
+      if (!resolved) {
+        router.push('/dashboard')
+        return
+      }
+
+      if (shouldRedirectToSlug(ref, resolved.slug)) {
+        router.replace(coursePath(resolved.slug, 'certificate'))
+        return
+      }
+
+      setCourseRef(resolved.slug || resolved.id)
+
+      const { data: courseData } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', resolved.id)
+        .single()
       setCourse(courseData)
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, department')
+        .select('display_name, department, employee_no, gsw_user_id')
         .eq('id', user.id)
         .maybeSingle()
 
       setLearnerName(profile?.display_name || user.email?.split('@')[0] || '수강생')
       setDepartment(profile?.department || '')
+      setEmployeeNo(profile?.employee_no || profile?.gsw_user_id || '')
 
-      const { data: st } = await supabase.rpc('get_course_learning_status', { p_course_id: id })
+      const { data: st } = await supabase.rpc('get_course_learning_status', {
+        p_course_id: resolved.id,
+      })
       const status = st?.[0] as CourseLearningStatus | undefined
       setAllowed(!!status?.course_complete)
 
       const { data: examAct } = await supabase
         .from('course_activities')
         .select('id')
-        .eq('course_id', id)
+        .eq('course_id', resolved.id)
         .eq('activity_type', 'exam')
         .maybeSingle()
 
@@ -68,11 +92,13 @@ export default function CertificatePage() {
       setLoading(false)
     }
     init()
-  }, [id, router, supabase])
+  }, [ref, router, supabase])
 
   const handlePrint = () => {
     window.print()
   }
+
+  const hubHref = coursePath(courseRef)
 
   if (loading) {
     return (
@@ -89,8 +115,8 @@ export default function CertificatePage() {
           수료 조건(영상·평가·시험)을 모두 완료한 후 수료증을 발급받을 수 있습니다.
         </div>
         <Link
-          href={`/course/${id}`}
-          className="mt-4 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
+          href={hubHref}
+          className="mt-4 inline-block text-sm font-medium text-[var(--accent)] hover:underline touch-manipulation"
         >
           ← 강의 허브로
         </Link>
@@ -100,17 +126,17 @@ export default function CertificatePage() {
 
   return (
     <AppShell title="수료증" subtitle={course?.title} showWatermark={false}>
-      <div className="print:hidden mb-4 flex gap-2">
+      <div className="print:hidden mb-4 flex flex-col sm:flex-row gap-2">
         <button
           type="button"
           onClick={handlePrint}
-          className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium"
+          className="min-h-[48px] px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-sm font-medium touch-manipulation"
         >
           인쇄 / PDF 저장
         </button>
         <Link
-          href={`/course/${id}`}
-          className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm"
+          href={hubHref}
+          className="min-h-[48px] px-4 py-2 rounded-xl border border-[var(--border)] text-sm flex items-center justify-center touch-manipulation"
         >
           강의 허브
         </Link>
@@ -118,17 +144,25 @@ export default function CertificatePage() {
 
       <div
         id="certificate"
-        className="certificate-sheet mx-auto max-w-2xl rounded-2xl border-2 border-[var(--accent)] bg-white p-8 md:p-12 text-center shadow-sm"
+        className="certificate-sheet mx-auto max-w-2xl rounded-2xl border-2 border-[var(--accent)] bg-white p-6 sm:p-8 md:p-12 text-center shadow-sm"
       >
         <p className="text-xs tracking-[0.3em] text-[var(--text-muted)] uppercase">EVKMC</p>
-        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text)] mt-4">교육 이수 증명서</h1>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text)] mt-4">
+          교육 이수 증명서
+        </h1>
         <p className="text-sm text-[var(--text-muted)] mt-2">Certificate of Completion</p>
 
-        <div className="my-10 space-y-3 text-left max-w-md mx-auto text-sm">
+        <div className="my-8 sm:my-10 space-y-3 text-left max-w-md mx-auto text-sm">
           <p>
             <span className="text-[var(--text-muted)]">성명</span>
             <span className="ml-3 font-semibold text-lg text-[var(--text)]">{learnerName}</span>
           </p>
+          {employeeNo && (
+            <p>
+              <span className="text-[var(--text-muted)]">식별</span>
+              <span className="ml-3 font-medium">{employeeNo}</span>
+            </p>
+          )}
           {department && (
             <p>
               <span className="text-[var(--text-muted)]">소속</span>
@@ -145,11 +179,12 @@ export default function CertificatePage() {
           </p>
         </div>
 
-        <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-lg mx-auto">
-          위 수강생은 본 교육과정의 영상 수강, 만족도 평가 및 온라인 시험 요건을 충족하였음을 증명합니다.
+        <p className="text-sm text-[var(--text-muted)] leading-relaxed max-w-lg mx-auto px-2">
+          위 수강생은 본 교육과정의 영상 수강, 만족도 평가 및 온라인 시험 요건을 충족하였음을
+          증명합니다.
         </p>
 
-        <div className="mt-12 pt-6 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+        <div className="mt-10 sm:mt-12 pt-6 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
           EVKMC LMS · lms-youtube-testbed
         </div>
       </div>

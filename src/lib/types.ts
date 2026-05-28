@@ -1,5 +1,6 @@
 export interface Course {
   id: string
+  slug?: string | null
   title: string
   description: string | null
   thumbnail_url: string | null
@@ -18,6 +19,7 @@ export interface SlideItem {
 
 export interface Lesson {
   id: string
+  slug?: string | null
   course_id: string
   title: string
   lesson_type: LessonType
@@ -68,6 +70,7 @@ export type ActivityType = 'guide' | 'evaluation' | 'exam'
 
 export interface CourseActivity {
   id: string
+  slug?: string | null
   course_id: string
   activity_type: ActivityType
   title: string

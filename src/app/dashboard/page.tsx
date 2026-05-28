@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import type { Course, CourseLearningStatus } from '@/lib/types'
 import { isDemoCourseId } from '@/lib/evkmc'
+import { coursePath, publicRef } from '@/lib/routes'
 
 interface CourseWithProgress extends Course {
   total_lessons: number
@@ -118,7 +119,7 @@ export default function DashboardPage() {
             return (
               <Link
                 key={course.id}
-                href={`/course/${course.id}`}
+                href={coursePath(publicRef(course))}
                 className="card-hover rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 block"
               >
                 <div className="flex justify-between items-start gap-2">

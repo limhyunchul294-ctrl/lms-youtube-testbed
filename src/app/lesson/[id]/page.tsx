@@ -8,16 +8,22 @@ import AppShell from '@/components/layout/AppShell'
 import YouTubePlayer from '@/components/YouTubePlayer'
 import SlideLessonPlayer from '@/components/SlideLessonPlayer'
 import { parseSlides } from '@/lib/lesson'
+import { activityPath, coursePath, lessonPath, publicRef } from '@/lib/routes'
+import { resolveLessonId, shouldRedirectToSlug } from '@/lib/resolve-ref'
 import type { Lesson, LessonType, UserProgress } from '@/lib/types'
 
 export default function LessonPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id: ref } = useParams<{ id: string }>()
   const [lesson, setLesson] = useState<Lesson | null>(null)
+  const [courseRef, setCourseRef] = useState('')
   const [progress, setProgress] = useState<UserProgress | null>(null)
-  const [prevNext, setPrevNext] = useState<{ prev: string | null; next: string | null }>({ prev: null, next: null })
+  const [prevNext, setPrevNext] = useState<{ prev: string | null; next: string | null }>({
+    prev: null,
+    next: null,
+  })
   const [completed, setCompleted] = useState(false)
   const [accessError, setAccessError] = useState<string | null>(null)
-  const [guideActivityId, setGuideActivityId] = useState<string | null>(null)
+  const [guideHref, setGuideHref] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
@@ -25,15 +31,32 @@ export default function LessonPage() {
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/'); return }
+      if (!user) {
+        router.push('/')
+        return
+      }
+
+      const resolved = await resolveLessonId(supabase, ref)
+      if (!resolved) {
+        router.push('/dashboard')
+        return
+      }
+
+      if (shouldRedirectToSlug(ref, resolved.slug)) {
+        router.replace(lessonPath(resolved.slug))
+        return
+      }
 
       const { data: lessonData } = await supabase
         .from('lessons')
         .select('*')
-        .eq('id', id)
+        .eq('id', resolved.id)
         .single()
 
-      if (!lessonData) { router.push('/dashboard'); return }
+      if (!lessonData) {
+        router.push('/dashboard')
+        return
+      }
 
       const lessonType = (lessonData.lesson_type || 'video') as LessonType
       const normalized: Lesson = {
@@ -42,6 +65,13 @@ export default function LessonPage() {
         slides: lessonData.slides ? parseSlides(lessonData.slides) : null,
       }
       setLesson(normalized)
+
+      const { data: course } = await supabase
+        .from('courses')
+        .select('slug')
+        .eq('id', lessonData.course_id)
+        .single()
+      setCourseRef(course?.slug || lessonData.course_id)
 
       const { data: enrollment } = await supabase
         .from('enrollments')
@@ -56,17 +86,16 @@ export default function LessonPage() {
         return
       }
 
-      // 학습 흐름 강제: 먼저 "강의 안내(guide)"를 확인해야 영상/슬라이드 레슨을 볼 수 있습니다.
       try {
         const { data: guideAct } = await supabase
           .from('course_activities')
-          .select('id')
+          .select('id, slug')
           .eq('course_id', lessonData.course_id)
           .eq('activity_type', 'guide')
           .maybeSingle()
 
         if (guideAct?.id) {
-          setGuideActivityId(guideAct.id)
+          setGuideHref(activityPath(publicRef({ id: guideAct.id, slug: guideAct.slug })))
           const { data: guideSub } = await supabase
             .from('activity_submissions')
             .select('answers')
@@ -74,7 +103,8 @@ export default function LessonPage() {
             .eq('user_id', user.id)
             .maybeSingle()
 
-          const ack = (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
+          const ack =
+            (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
           if (!ack) {
             setAccessError('먼저 강의 안내(수강 규정)를 확인해 주세요.')
             setLoading(false)
@@ -82,8 +112,6 @@ export default function LessonPage() {
           }
         }
       } catch (e) {
-        // 마이그레이션이 아직 적용되지 않은 상태에서는 테이블 조회가 실패할 수 있습니다.
-        // 이 경우 UX 테스트를 위해 기존 enrolment만으로 레슨 접근을 허용합니다.
         console.warn('guide access check failed', e)
       }
 
@@ -91,7 +119,7 @@ export default function LessonPage() {
         .from('user_progress')
         .select('*')
         .eq('user_id', user.id)
-        .eq('lesson_id', id)
+        .eq('lesson_id', resolved.id)
         .maybeSingle()
 
       setProgress(progressData)
@@ -99,87 +127,84 @@ export default function LessonPage() {
 
       const { data: siblings } = await supabase
         .from('lessons')
-        .select('id, sort_order')
+        .select('id, slug, sort_order')
         .eq('course_id', lessonData.course_id)
         .order('sort_order')
 
       if (siblings) {
-        const idx = siblings.findIndex(s => s.id === id)
+        const idx = siblings.findIndex((s) => s.id === resolved.id)
+        const toRef = (row: { id: string; slug: string | null }) =>
+          lessonPath(publicRef(row))
         setPrevNext({
-          prev: idx > 0 ? siblings[idx - 1].id : null,
-          next: idx < siblings.length - 1 ? siblings[idx + 1].id : null,
+          prev: idx > 0 ? toRef(siblings[idx - 1]) : null,
+          next: idx < siblings.length - 1 ? toRef(siblings[idx + 1]) : null,
         })
       }
 
       setLoading(false)
     }
     init()
-  }, [id, router, supabase])
+  }, [ref, router, supabase])
 
   if (loading) {
     return (
-      <>
-        <AppShell>
-          <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>
-        </AppShell>
-      </>
+      <AppShell>
+        <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>
+      </AppShell>
     )
   }
 
   if (accessError && lesson) {
     return (
-      <>
-        <AppShell title={lesson.title} subtitle={lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}>
-          <div className="max-w-3xl mx-auto px-1 md:px-0 py-2 text-center">
-            <p className="text-sm text-slate-600 mb-4">{accessError}</p>
-
-            {guideActivityId ? (
-              <Link
-                href={`/activity/${guideActivityId}`}
-                className="inline-block mr-3 text-sm text-[var(--accent)] font-medium hover:underline"
-              >
-                강의 안내로 이동 →
-              </Link>
-            ) : null}
-
+      <AppShell title={lesson.title} subtitle={lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}>
+        <div className="max-w-3xl mx-auto py-2 text-center px-2">
+          <p className="text-sm text-slate-600 mb-4">{accessError}</p>
+          {guideHref && (
             <Link
-              href={`/course/${lesson.course_id}`}
-              className="inline-block text-sm text-blue-600 font-medium hover:underline"
+              href={guideHref}
+              className="inline-block mr-3 text-sm text-[var(--accent)] font-medium hover:underline touch-manipulation"
             >
-              강의 상세로 이동 →
+              강의 안내로 이동 →
             </Link>
-          </div>
-        </AppShell>
-      </>
+          )}
+          <Link
+            href={coursePath(courseRef)}
+            className="inline-block text-sm text-[var(--accent)] font-medium hover:underline touch-manipulation"
+          >
+            강의 상세로 이동 →
+          </Link>
+        </div>
+      </AppShell>
     )
   }
 
   if (!lesson) {
     return (
-      <>
-        <AppShell>
-          <div className="text-center py-20 text-slate-400 text-sm">레슨을 찾을 수 없습니다.</div>
-        </AppShell>
-      </>
+      <AppShell>
+        <div className="text-center py-20 text-slate-400 text-sm">레슨을 찾을 수 없습니다.</div>
+      </AppShell>
     )
   }
 
   const isSlides = lesson.lesson_type === 'slides'
   const slides = lesson.slides || []
+  const hubHref = coursePath(courseRef)
 
   return (
     <AppShell title={lesson.title} subtitle={isSlides ? '슬라이드' : '영상'}>
-      <div className="max-w-3xl mx-auto px-1 md:px-0">
+      <div className="max-w-3xl mx-auto">
         <Link
-          href={`/course/${lesson.course_id}`}
-          className="text-xs text-slate-400 hover:text-slate-600 mb-3 inline-block"
+          href={hubHref}
+          className="text-xs text-slate-400 hover:text-slate-600 mb-3 inline-block touch-manipulation"
         >
           ← 강의 목록으로
         </Link>
 
-        <div className="flex items-center gap-2 mb-4">
-          <h1 className="text-lg font-bold text-slate-900 flex-1">{lesson.title}</h1>
-          <span className="text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded border border-slate-200 text-slate-500 bg-slate-50">
+        <div className="flex items-start gap-2 mb-4">
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 flex-1 leading-snug">
+            {lesson.title}
+          </h1>
+          <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded border border-slate-200 text-slate-500 bg-slate-50">
             {isSlides ? '슬라이드' : '영상'}
           </span>
         </div>
@@ -201,22 +226,24 @@ export default function LessonPage() {
           />
         )}
 
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
           {prevNext.prev ? (
             <Link
-              href={`/lesson/${prevNext.prev}`}
-              className="flex-1 py-2.5 text-center border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition"
+              href={prevNext.prev}
+              className="flex-1 py-3 text-center border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition touch-manipulation min-h-[48px] flex items-center justify-center"
             >
               ← 이전 강의
             </Link>
-          ) : <div className="flex-1" />}
+          ) : (
+            <div className="hidden sm:block flex-1" />
+          )}
 
           {prevNext.next ? (
             <Link
-              href={`/lesson/${prevNext.next}`}
-              className={`flex-1 py-2.5 text-center rounded-lg text-sm font-medium transition ${
+              href={prevNext.next}
+              className={`flex-1 py-3 text-center rounded-xl text-sm font-medium transition touch-manipulation min-h-[48px] flex items-center justify-center ${
                 completed
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'bg-[var(--accent)] text-white hover:opacity-90'
                   : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -224,8 +251,8 @@ export default function LessonPage() {
             </Link>
           ) : (
             <Link
-              href={`/course/${lesson.course_id}`}
-              className="flex-1 py-2.5 text-center bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
+              href={hubHref}
+              className="flex-1 py-3 text-center bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition touch-manipulation min-h-[48px] flex items-center justify-center"
             >
               강의 목록으로 ✓
             </Link>

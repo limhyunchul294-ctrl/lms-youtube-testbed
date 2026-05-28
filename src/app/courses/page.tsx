@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import type { Course } from '@/lib/types'
 import { isDemoCourseId } from '@/lib/evkmc'
+import { coursePath, publicRef } from '@/lib/routes'
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
@@ -46,7 +47,8 @@ export default function CoursesPage() {
 
     await supabase.from('enrollments').insert({ user_id: user.id, course_id: courseId })
     setEnrolled((prev) => new Set([...prev, courseId]))
-    router.push(`/course/${courseId}`)
+    const course = courses.find((c) => c.id === courseId)
+    router.push(coursePath(publicRef(course || { id: courseId })))
   }
 
   return (
@@ -74,7 +76,7 @@ export default function CoursesPage() {
                   {enrolled.has(course.id) ? (
                     <button
                       type="button"
-                      onClick={() => router.push(`/course/${course.id}`)}
+                      onClick={() => router.push(coursePath(publicRef(course)))}
                       className="w-full py-2 bg-slate-100 text-[var(--text)] text-sm font-medium rounded-lg hover:bg-slate-200"
                     >
                       학습 허브 열기 →

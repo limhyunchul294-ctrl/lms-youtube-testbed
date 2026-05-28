@@ -17,7 +17,7 @@ export default function CourseLearningPath({ steps }: { steps: LearningStep[] })
 
         const content = (
           <div
-            className={`flex gap-4 rounded-xl border p-4 transition ${
+            className={`flex gap-3 sm:gap-4 rounded-xl border p-3 sm:p-4 transition min-h-[56px] ${
               step.status === 'done'
                 ? 'border-green-200 bg-green-50/50'
                 : step.status === 'in_progress'
@@ -61,7 +61,7 @@ export default function CourseLearningPath({ steps }: { steps: LearningStep[] })
               />
             )}
             {canNavigate ? (
-              <Link href={step.href} className="block mb-3">
+              <Link href={step.href} className="block mb-3 touch-manipulation">
                 {content}
               </Link>
             ) : (

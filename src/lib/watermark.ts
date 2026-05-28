@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { fetchLearnerProfile, syncProfileFromAuthUser } from '@/lib/profile'
 
 /** 페이지 워터마크에 표시할 학습자 식별 문자열 */
 export async function fetchLearnerWatermarkLabel(
@@ -9,27 +10,20 @@ export async function fetchLearnerWatermarkLabel(
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  let label = user.email || user.id
-
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('display_name, email')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (profile?.email) {
-      label = profile.email
-    } else if (profile?.display_name && user.email) {
-      label = `${profile.display_name} (${user.email})`
-    } else if (profile?.display_name) {
-      label = profile.display_name
-    }
-  } catch {
-    // profiles 미적용 환경
+  let profile = await fetchLearnerProfile(supabase, user.id)
+  if (!profile?.gsw_user_id && user.user_metadata?.gsw_user_id) {
+    profile = await syncProfileFromAuthUser(supabase, user)
   }
 
-  return label
+  if (profile?.gsw_user_id) {
+    const name = profile.display_name || profile.email
+    const idPart = profile.employee_no
+      ? `사번:${profile.employee_no}`
+      : `GSW:${profile.gsw_user_id}`
+    return `${name} · ${idPart}`
+  }
+
+  return profile?.email || user.email || user.id
 }
 
 export function formatWatermarkLine(label: string): string {

@@ -4,30 +4,21 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
+import GuideContent from '@/components/activity/GuideContent'
+import EvaluationForm, { type EvalQuestion } from '@/components/activity/EvaluationForm'
+import ExamForm, { type ExamQuestion } from '@/components/activity/ExamForm'
 import { createClient } from '@/lib/supabase'
+import { activityPath, coursePath } from '@/lib/routes'
+import { resolveActivityId, shouldRedirectToSlug } from '@/lib/resolve-ref'
 import type { ActivityType, CourseActivity } from '@/lib/types'
 
-type ExamQuestion = {
-  id: string
-  label: string
-  options: string[]
-  correct: number
-}
-
-type EvalQuestion = {
-  id: string
-  label: string
-  type: 'rating' | 'text'
-  max?: number
-  optional?: boolean
-}
-
 export default function ActivityPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id: ref } = useParams<{ id: string }>()
   const router = useRouter()
   const supabase = createClient()
   const [activity, setActivity] = useState<CourseActivity | null>(null)
   const [courseTitle, setCourseTitle] = useState('')
+  const [courseRef, setCourseRef] = useState('')
   const [answers, setAnswers] = useState<Record<string, string | number>>({})
   const [acknowledged, setAcknowledged] = useState(false)
   const [gateMessage, setGateMessage] = useState<string | null>(null)
@@ -46,10 +37,21 @@ export default function ActivityPage() {
         return
       }
 
+      const resolved = await resolveActivityId(supabase, ref)
+      if (!resolved) {
+        router.push('/dashboard')
+        return
+      }
+
+      if (shouldRedirectToSlug(ref, resolved.slug)) {
+        router.replace(activityPath(resolved.slug))
+        return
+      }
+
       const { data: act } = await supabase
         .from('course_activities')
         .select('*')
-        .eq('id', id)
+        .eq('id', resolved.id)
         .single()
 
       if (!act) {
@@ -61,12 +63,12 @@ export default function ActivityPage() {
 
       const { data: course } = await supabase
         .from('courses')
-        .select('title')
+        .select('title, slug')
         .eq('id', act.course_id)
         .single()
       setCourseTitle(course?.title || '')
+      setCourseRef(course?.slug || act.course_id)
 
-      // 수강 신청 여부 1차 가드
       const { data: enrollment } = await supabase
         .from('enrollments')
         .select('id')
@@ -76,12 +78,11 @@ export default function ActivityPage() {
 
       if (!enrollment) {
         setGateMessage('먼저 수강 신청 후 이 활동을 이용할 수 있습니다.')
-        setGateLink(`/course/${act.course_id}`)
+        setGateLink(coursePath(course?.slug || act.course_id))
         setLoading(false)
         return
       }
 
-      // 흐름 가드 계산 (guide → lessons 완료 → evaluation → exam)
       let guideAcknowledged = false
       let lessonsComplete = false
       let evaluationPassed = false
@@ -102,11 +103,13 @@ export default function ActivityPage() {
             .eq('user_id', user.id)
             .maybeSingle()
 
-          guideAcknowledged = (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
+          guideAcknowledged =
+            (guideSub?.answers as { acknowledged?: boolean } | null)?.acknowledged === true
         }
 
-        // RPC가 없을 수도 있어(마이그레이션 전) fallback을 둡니다.
-        const { data: st } = await supabase.rpc('get_course_learning_status', { p_course_id: act.course_id })
+        const { data: st } = await supabase.rpc('get_course_learning_status', {
+          p_course_id: act.course_id,
+        })
         lessonsComplete = !!st?.[0]?.lessons_complete
 
         const { data: evalAct } = await supabase
@@ -132,22 +135,25 @@ export default function ActivityPage() {
 
       const allowed =
         act.activity_type === 'guide'
-          ? true // guide는 수강 신청만 되면 접근 허용
+          ? true
           : act.activity_type === 'evaluation'
             ? guideAcknowledged && lessonsComplete
             : guideAcknowledged && lessonsComplete && evaluationPassed
 
       if (!allowed) {
+        const hub = coursePath(course?.slug || act.course_id)
         if (act.activity_type === 'evaluation') {
-          setGateMessage('먼저 강의 안내를 확인하고, 영상 수강을 모두 완료한 후에 만족도 평가를 제출할 수 있습니다.')
-          setGateLink(`/course/${act.course_id}`)
+          setGateMessage(
+            '먼저 강의 안내를 확인하고, 영상 수강을 모두 완료한 후에 만족도 평가를 제출할 수 있습니다.'
+          )
         } else if (act.activity_type === 'exam') {
-          setGateMessage('평가를 완료하고(합격 기준 충족) 영상 수강을 모두 완료한 후에 시험을 제출할 수 있습니다.')
-          setGateLink(`/course/${act.course_id}`)
+          setGateMessage(
+            '평가를 완료하고(합격 기준 충족) 영상 수강을 모두 완료한 후에 시험을 제출할 수 있습니다.'
+          )
         } else {
           setGateMessage('이 활동은 아직 이용할 수 없습니다.')
-          setGateLink(`/course/${act.course_id}`)
         }
+        setGateLink(hub)
         setLoading(false)
         return
       }
@@ -155,7 +161,7 @@ export default function ActivityPage() {
       const { data: sub } = await supabase
         .from('activity_submissions')
         .select('*')
-        .eq('activity_id', id)
+        .eq('activity_id', resolved.id)
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -176,7 +182,7 @@ export default function ActivityPage() {
       setLoading(false)
     }
     init()
-  }, [id, router, supabase])
+  }, [ref, router, supabase])
 
   const submit = async () => {
     if (!activity) return
@@ -264,6 +270,7 @@ export default function ActivityPage() {
   const sections = (activity.config?.sections as { title: string; body: string }[]) || []
   const evalQuestions = (activity.config?.questions as EvalQuestion[]) || []
   const examQuestions = (activity.config?.questions as ExamQuestion[]) || []
+  const hubHref = coursePath(courseRef)
 
   return (
     <AppShell
@@ -271,8 +278,8 @@ export default function ActivityPage() {
       subtitle={`${courseTitle} · ${typeLabel[activity.activity_type]}`}
     >
       <Link
-        href={`/course/${activity.course_id}`}
-        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block"
+        href={hubHref}
+        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block touch-manipulation"
       >
         ← 강의 허브로
       </Link>
@@ -288,7 +295,7 @@ export default function ActivityPage() {
           {gateLink && (
             <Link
               href={gateLink}
-              className="mt-3 inline-block text-sm font-medium text-[var(--accent)] hover:underline"
+              className="mt-3 inline-block text-sm font-medium text-[var(--accent)] hover:underline touch-manipulation"
             >
               필수 단계로 이동 →
             </Link>
@@ -297,84 +304,36 @@ export default function ActivityPage() {
       )}
 
       {!gateMessage && activity.activity_type === 'guide' && (
-        <div className="space-y-4 mb-6">
-          {sections.map((s, i) => (
-            <section key={i} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <h2 className="font-semibold text-[var(--text)]">{s.title}</h2>
-              <p className="text-sm text-[var(--text-muted)] mt-2 whitespace-pre-wrap">{s.body}</p>
-            </section>
-          ))}
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
-              className="mt-1"
-            />
-            <span>위 안내 내용을 확인했으며, 수강 규정에 동의합니다.</span>
-          </label>
+        <div className="mb-6">
+          <GuideContent
+            sections={sections}
+            acknowledged={acknowledged}
+            onAcknowledgedChange={setAcknowledged}
+            disabled={!!result?.passed}
+          />
         </div>
       )}
 
       {!gateMessage && activity.activity_type === 'evaluation' && (
-        <div className="space-y-5 mb-6">
-          {evalQuestions.map((q) => (
-            <div key={q.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <p className="text-sm font-medium text-[var(--text)] mb-3">{q.label}</p>
-              {q.type === 'rating' ? (
-                <div className="flex gap-2 flex-wrap">
-                  {Array.from({ length: q.max || 5 }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setAnswers((a) => ({ ...a, [q.id]: n }))}
-                      className={`h-10 w-10 rounded-lg text-sm font-medium border ${
-                        answers[q.id] === n
-                          ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                          : 'border-[var(--border)]'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <textarea
-                  className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm min-h-[80px]"
-                  value={(answers[q.id] as string) || ''}
-                  onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                />
-              )}
-            </div>
-          ))}
+        <div className="mb-6">
+          <EvaluationForm
+            questions={evalQuestions}
+            answers={answers}
+            onChange={setAnswers}
+            disabled={!!result?.passed}
+          />
         </div>
       )}
 
       {!gateMessage && activity.activity_type === 'exam' && (
-        <div className="space-y-5 mb-6">
-          <p className="text-xs text-[var(--text-muted)]">
-            합격 기준: {Number(activity.config?.pass_score ?? 70)}점 이상
-          </p>
-          {examQuestions.map((q, qi) => (
-            <fieldset key={q.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-              <legend className="text-sm font-medium text-[var(--text)] mb-3">
-                {qi + 1}. {q.label}
-              </legend>
-              <div className="space-y-2">
-                {q.options.map((opt, oi) => (
-                  <label key={oi} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={Number(answers[q.id]) === oi}
-                      onChange={() => setAnswers((a) => ({ ...a, [q.id]: oi }))}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ))}
+        <div className="mb-6">
+          <ExamForm
+            questions={examQuestions}
+            passScore={Number(activity.config?.pass_score ?? 70)}
+            answers={answers}
+            onChange={setAnswers}
+            disabled={!!result?.passed}
+          />
         </div>
       )}
 
@@ -393,7 +352,7 @@ export default function ActivityPage() {
           type="button"
           disabled={submitting}
           onClick={submit}
-          className="w-full md:w-auto px-6 py-2.5 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-xl bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 touch-manipulation"
         >
           {submitting ? '제출 중…' : activity.activity_type === 'exam' ? '시험 제출' : '제출하기'}
         </button>
@@ -401,8 +360,8 @@ export default function ActivityPage() {
 
       {result?.passed && (
         <Link
-          href={`/course/${activity.course_id}`}
-          className="inline-block mt-4 text-sm font-medium text-[var(--accent)] hover:underline"
+          href={hubHref}
+          className="inline-block mt-4 text-sm font-medium text-[var(--accent)] hover:underline touch-manipulation"
         >
           강의 허브로 돌아가기 →
         </Link>

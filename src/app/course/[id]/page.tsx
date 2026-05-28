@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
 import CourseLearningPath, { type LearningStep } from '@/components/course/CourseLearningPath'
+import { coursePath, lessonPath, activityPath, publicRef } from '@/lib/routes'
+import { resolveCourseId, shouldRedirectToSlug } from '@/lib/resolve-ref'
 import type {
   Course,
   CourseActivity,
@@ -14,8 +16,10 @@ import type {
 } from '@/lib/types'
 
 export default function CourseDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id: ref } = useParams<{ id: string }>()
+  const [courseId, setCourseId] = useState<string | null>(null)
   const [course, setCourse] = useState<Course | null>(null)
+  const [lessonSlugById, setLessonSlugById] = useState<Record<string, string | null>>({})
   const [lessons, setLessons] = useState<LessonWithProgress[]>([])
   const [activities, setActivities] = useState<CourseActivity[]>([])
   const [submissions, setSubmissions] = useState<Set<string>>(new Set())
@@ -25,6 +29,8 @@ export default function CourseDetailPage() {
   const supabase = createClient()
   const router = useRouter()
 
+  const courseRef = course ? publicRef(course) : ref
+
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -33,18 +39,47 @@ export default function CourseDetailPage() {
         return
       }
 
+      const resolved = await resolveCourseId(supabase, ref)
+      if (!resolved) {
+        router.push('/dashboard')
+        return
+      }
+
+      if (shouldRedirectToSlug(ref, resolved.slug)) {
+        router.replace(coursePath(resolved.slug))
+        return
+      }
+
+      setCourseId(resolved.id)
+
       const { data: enrollment } = await supabase
         .from('enrollments')
         .select('id')
         .eq('user_id', user.id)
-        .eq('course_id', id)
+        .eq('course_id', resolved.id)
         .maybeSingle()
       setEnrolled(!!enrollment)
 
-      const { data: courseData } = await supabase.from('courses').select('*').eq('id', id).single()
+      const { data: courseData } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', resolved.id)
+        .single()
       setCourse(courseData)
 
-      const { data: lessonsData } = await supabase.rpc('get_my_course_progress', { p_course_id: id })
+      const { data: slugRows } = await supabase
+        .from('lessons')
+        .select('id, slug')
+        .eq('course_id', resolved.id)
+      const slugMap: Record<string, string | null> = {}
+      ;(slugRows || []).forEach((r) => {
+        slugMap[r.id] = r.slug
+      })
+      setLessonSlugById(slugMap)
+
+      const { data: lessonsData } = await supabase.rpc('get_my_course_progress', {
+        p_course_id: resolved.id,
+      })
       setLessons(
         (lessonsData || []).map((l: LessonWithProgress) => ({
           ...l,
@@ -57,7 +92,7 @@ export default function CourseDetailPage() {
       const { data: acts } = await supabase
         .from('course_activities')
         .select('*')
-        .eq('course_id', id)
+        .eq('course_id', resolved.id)
         .order('sort_order')
       setActivities((acts || []) as CourseActivity[])
 
@@ -79,13 +114,15 @@ export default function CourseDetailPage() {
       })
       setSubmissions(done)
 
-      const { data: st } = await supabase.rpc('get_course_learning_status', { p_course_id: id })
+      const { data: st } = await supabase.rpc('get_course_learning_status', {
+        p_course_id: resolved.id,
+      })
       if (st?.[0]) setStatus(st[0] as CourseLearningStatus)
 
       setLoading(false)
     }
     init()
-  }, [id, router, supabase])
+  }, [ref, router, supabase])
 
   const completedCount = lessons.filter((l) => l.is_completed).length
   const totalCount = lessons.length
@@ -107,12 +144,15 @@ export default function CourseDetailPage() {
     const examDone = exam ? submissions.has(exam.id) : true
 
     const firstLesson = lessons[0]
+    const lessonHref = firstLesson
+      ? lessonPath(publicRef({ id: firstLesson.lesson_id, slug: lessonSlugById[firstLesson.lesson_id] }))
+      : '#'
 
     return [
       {
         key: 'guide',
         label: '강의 안내 · 수강 규정',
-        href: guide ? `/activity/${guide.id}` : '#',
+        href: guide ? activityPath(publicRef(guide)) : '#',
         status: !guide
           ? 'done'
           : guideDone
@@ -125,7 +165,7 @@ export default function CourseDetailPage() {
       {
         key: 'lessons',
         label: '영상 수강',
-        href: firstLesson ? `/lesson/${firstLesson.lesson_id}` : '#',
+        href: lessonHref,
         status: !enrolled
           ? 'locked'
           : lessonsDone
@@ -140,7 +180,7 @@ export default function CourseDetailPage() {
       {
         key: 'evaluation',
         label: '강의 만족도 평가',
-        href: evaluation ? `/activity/${evaluation.id}` : '#',
+        href: evaluation ? activityPath(publicRef(evaluation)) : '#',
         status: !evaluation
           ? 'done'
           : evalDone
@@ -153,7 +193,7 @@ export default function CourseDetailPage() {
       {
         key: 'exam',
         label: '온라인 시험',
-        href: exam ? `/activity/${exam.id}` : '#',
+        href: exam ? activityPath(publicRef(exam)) : '#',
         status: !exam
           ? 'done'
           : examDone
@@ -166,7 +206,15 @@ export default function CourseDetailPage() {
         detail: examDone ? '합격' : `합격 기준 ${Number(exam?.config?.pass_score ?? 70)}점`,
       },
     ]
-  }, [activities, submissions, lessons, enrolled, completedCount, totalCount])
+  }, [
+    activities,
+    submissions,
+    lessons,
+    enrolled,
+    completedCount,
+    totalCount,
+    lessonSlugById,
+  ])
 
   const formatDuration = (s: number) => {
     if (s <= 0) return ''
@@ -174,7 +222,7 @@ export default function CourseDetailPage() {
     return `${m}분`
   }
 
-  if (loading) {
+  if (loading || !courseId) {
     return (
       <AppShell>
         <div className="text-center py-20 text-sm text-[var(--text-muted)]">불러오는 중…</div>
@@ -182,11 +230,13 @@ export default function CourseDetailPage() {
     )
   }
 
+  const guideAct = activities.find((a) => a.activity_type === 'guide')
+
   return (
     <AppShell title={course?.title || '강의'} subtitle={course?.description || undefined}>
       <Link
         href="/dashboard"
-        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block"
+        className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] mb-4 inline-block touch-manipulation"
       >
         ← 내 학습
       </Link>
@@ -204,8 +254,8 @@ export default function CourseDetailPage() {
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           <p className="font-medium">🎉 이 강의의 필수 학습(수강·평가·시험)을 모두 완료했습니다.</p>
           <Link
-            href={`/course/${id}/certificate`}
-            className="mt-2 inline-block text-sm font-semibold text-green-800 underline"
+            href={coursePath(courseRef, 'certificate')}
+            className="mt-2 inline-block text-sm font-semibold text-green-800 underline touch-manipulation"
           >
             수료증 보기 · 인쇄 →
           </Link>
@@ -213,7 +263,7 @@ export default function CourseDetailPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-5 mb-8">
-        <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <div className="lg:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 md:p-5">
           <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">
             전체 진행
           </p>
@@ -239,8 +289,14 @@ export default function CourseDetailPage() {
       <h2 className="text-sm font-semibold text-[var(--text)] mb-3">강의 목차</h2>
       <div className="space-y-2">
         {lessons.map((lesson, idx) => {
-          const locked = !enrolled || (activities.some((a) => a.activity_type === 'guide') &&
-            !submissions.has(activities.find((a) => a.activity_type === 'guide')!.id))
+          const locked =
+            !enrolled ||
+            (guideAct && !submissions.has(guideAct.id))
+
+          const lessonRef = publicRef({
+            id: lesson.lesson_id,
+            slug: lessonSlugById[lesson.lesson_id],
+          })
 
           const inner = (
             <>
@@ -272,7 +328,7 @@ export default function CourseDetailPage() {
                   )}
                 </div>
               </div>
-              {!locked && <span className="text-slate-300">›</span>}
+              {!locked && <span className="text-slate-300 self-center">›</span>}
             </>
           )
 
@@ -290,8 +346,8 @@ export default function CourseDetailPage() {
           return (
             <Link
               key={lesson.lesson_id}
-              href={`/lesson/${lesson.lesson_id}`}
-              className="card-hover flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 block"
+              href={lessonPath(lessonRef)}
+              className="card-hover flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 block touch-manipulation min-h-[56px]"
             >
               {inner}
             </Link>
