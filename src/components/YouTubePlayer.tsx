@@ -71,6 +71,7 @@ export default function YouTubePlayer({
   const [completed, setCompleted] = useState(initialCompleted)
   const [embedBlocked, setEmbedBlocked] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [fullscreenHint, setFullscreenHint] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   onCompleteRef.current = onComplete
@@ -237,17 +238,52 @@ export default function YouTubePlayer({
 
   const toggleFullscreen = useCallback(async () => {
     const frame = playerFrameRef.current
+    const playerIframe = playerRef.current?.getIframe?.() as
+      | (HTMLIFrameElement & {
+          webkitRequestFullscreen?: () => Promise<void> | void
+        })
+      | undefined
+
     if (!frame) return
+    setFullscreenHint(null)
 
     if (document.fullscreenElement) {
       await document.exitFullscreen()
       return
     }
 
+    // 1) 표준 API: 래퍼 우선
     if (frame.requestFullscreen) {
-      await frame.requestFullscreen()
+      try {
+        await frame.requestFullscreen()
+        return
+      } catch {
+        // 모바일 브라우저 제약 시 아래 fallback으로 진행
+      }
     }
-  }, [])
+
+    // 2) 일부 모바일 WebKit: iframe에 직접 요청
+    if (playerIframe?.requestFullscreen) {
+      try {
+        await playerIframe.requestFullscreen()
+        return
+      } catch {
+        // fallback continue
+      }
+    }
+    if (playerIframe?.webkitRequestFullscreen) {
+      try {
+        await playerIframe.webkitRequestFullscreen()
+        return
+      } catch {
+        // fallback continue
+      }
+    }
+
+    // 3) 최종 fallback: YouTube 원본 열기(앱/브라우저 전체화면 사용)
+    setFullscreenHint('모바일 브라우저 제한으로 앱/새 탭에서 전체화면 재생을 사용해 주세요.')
+    window.open(watchUrl, '_blank', 'noopener,noreferrer')
+  }, [watchUrl])
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -270,6 +306,9 @@ export default function YouTubePlayer({
           {isFullscreen ? '전체화면 종료' : '전체화면'}
         </button>
       </div>
+      {fullscreenHint && (
+        <p className="mb-2 text-xs text-amber-700">{fullscreenHint}</p>
+      )}
 
       <div ref={playerFrameRef} className="video-wrapper">
         <div ref={containerRef} className="absolute inset-0" />
