@@ -6,35 +6,15 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import PageWatermark from '@/components/layout/PageWatermark'
+import SidebarProfile from '@/components/profile/SidebarProfile'
 import type { LearnerProfile } from '@/lib/profile'
 import { profileFromUserMetadata, syncProfileFromAuthUser } from '@/lib/profile'
-import { buildGswProfileLines } from '@/lib/gsw-profile-labels'
 
 const NAV = [
   { href: '/dashboard', label: '내 학습', icon: '📚' },
   { href: '/courses', label: '강의 탐색', icon: '🔍' },
+  { href: '/account', label: '내 정보', icon: '👤' },
 ]
-
-function ProfileCard({ profile, compact }: { profile: LearnerProfile | null; compact?: boolean }) {
-  if (!profile) return null
-  const lines = buildGswProfileLines(profile)
-
-  return (
-    <div className={compact ? 'space-y-0.5' : 'space-y-1'}>
-      <p className={`font-medium text-[var(--text)] truncate ${compact ? 'text-xs' : 'text-sm'}`}>
-        {profile.display_name || profile.email}
-      </p>
-      {lines.map((l) => (
-        <p key={l.label} className="text-[10px] text-[var(--text-muted)] truncate leading-snug">
-          <span className="text-slate-400">{l.label}</span> {l.value}
-        </p>
-      ))}
-      {!profile.gsw_user_id && (
-        <p className="text-[10px] text-amber-700">GSW 연동 정보 없음</p>
-      )}
-    </div>
-  )
-}
 
 function NavLinks({
   pathname,
@@ -161,8 +141,9 @@ export default function AppShell({
   const displayName = profile?.display_name || '학습자'
 
   return (
-    <div className="min-h-dvh flex flex-col md:flex-row bg-[var(--bg)]">
-      <aside className="hidden md:flex md:w-60 lg:w-64 flex-col border-r border-[var(--border)] bg-[var(--card)] shrink-0">
+    <div className="relative min-h-dvh flex flex-col md:flex-row bg-[var(--bg)]">
+      {showWatermark && <PageWatermark />}
+      <aside className="relative z-10 hidden md:flex md:w-60 lg:w-64 flex-col border-r border-[var(--border)] bg-[var(--card)] shrink-0">
         <div className="p-5 border-b border-[var(--border)]">
           <Link href="/dashboard" className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-white text-lg">
@@ -178,7 +159,7 @@ export default function AppShell({
           <NavLinks pathname={pathname} isAdmin={isAdmin} />
         </nav>
         <div className="p-4 border-t border-[var(--border)]">
-          <ProfileCard profile={profile} />
+          <SidebarProfile profile={profile} />
           <button
             type="button"
             onClick={handleLogout}
@@ -189,7 +170,7 @@ export default function AppShell({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="relative z-10 flex-1 flex flex-col min-w-0">
         <header className="md:hidden sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--card)]/95 backdrop-blur px-3 py-2.5 flex items-center gap-2">
           <button
             type="button"
@@ -228,7 +209,7 @@ export default function AppShell({
                 <NavLinks pathname={pathname} isAdmin={isAdmin} onNavigate={() => setMenuOpen(false)} />
               </nav>
               <div className="p-4 border-t border-[var(--border)]">
-                <ProfileCard profile={profile} compact />
+                <SidebarProfile profile={profile} compact />
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -242,8 +223,7 @@ export default function AppShell({
         )}
 
         <main className="relative flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 md:px-8 py-5 md:py-8 overflow-hidden main-with-mobile-nav">
-          {showWatermark && <PageWatermark />}
-          <div className="relative z-[1] min-h-0">
+          <div className="relative min-h-0">
             {(title || subtitle) && (
               <header className="mb-5 md:mb-8">
                 {title && (

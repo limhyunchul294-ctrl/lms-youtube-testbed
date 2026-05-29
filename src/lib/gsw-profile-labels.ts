@@ -17,7 +17,27 @@ export function formatGswRoleLabel(role?: string | null): string {
 
 export type GswProfileLine = { label: string; value: string }
 
-/** GSW «내 정보» 순서와 동일한 사이드바 라인 */
+/** 사이드바 한 줄 요약 (소속 · 권한 · 등급) */
+export function buildGswProfileSummary(profile: {
+  department?: string | null
+  gsw_role?: string | null
+  gsw_grade?: string | null
+  email?: string | null
+}): string {
+  const parts: string[] = []
+  if (profile.department?.trim()) parts.push(profile.department.trim())
+  const role = formatGswRoleLabel(profile.gsw_role)
+  if (role) parts.push(role)
+  if (profile.gsw_grade?.trim()) {
+    const g = formatGswGradeLabel(profile.gsw_grade)
+    const short = g.replace(/^(⚫|⚪|🔵)\s*/, '').trim()
+    if (short) parts.push(short)
+  }
+  if (parts.length) return parts.join(' · ')
+  return profile.email?.trim() || '내 정보 확인'
+}
+
+/** GSW «내 정보» 상세 필드 목록 */
 export function buildGswProfileLines(profile: {
   department?: string | null
   gsw_role?: string | null

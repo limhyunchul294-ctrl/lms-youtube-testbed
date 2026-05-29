@@ -73,42 +73,23 @@ body {
 }
 
 /* 모바일 하단 네비 */
-/* 페이지 전체 워터마크 (GSW 스타일 — 영상 위가 아닌 배경 레이어) */
-.page-watermark {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
+/* GSW #watermark-overlay 와 동일한 전역 워터마크 */
+.gsw-watermark-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
-  z-index: 0;
-}
-.page-watermark__grid {
-  position: absolute;
-  top: -40%;
-  left: -35%;
-  width: 170%;
-  height: 170%;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: center;
-  justify-content: center;
-  gap: 2.75rem 3.5rem;
-  transform: rotate(-24deg);
-  opacity: 0.035;
-}
-.page-watermark__grid span {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #334155;
-  white-space: nowrap;
-  user-select: none;
+  z-index: 1;
+  overflow: hidden;
 }
 
 @media print {
   body {
     background: white;
   }
-  .page-watermark {
+  .gsw-watermark-overlay {
     display: none;
   }
   .certificate-sheet {
