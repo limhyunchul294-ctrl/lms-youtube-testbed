@@ -9,7 +9,18 @@
       "description": "EVKMC 전기차 AS 교육 — 친환경차(전기차·하이브리드·수소 등) 기본 개념과 구성을 학습합니다.",
       "thumbnail_url": "https://images.unsplash.com/photo-1593941707882-a5bac983da8a?w=800&auto=format&fit=crop",
       "is_published": true,
-      "sort_order": 1
+      "sort_order": 1,
+      "learning_modules": [
+        {
+          "title": "친환경차 기초 이론",
+          "description": "EV·하이브리드·구동계 기본 개념",
+          "lesson_ids": [
+            "33333333-1001-1001-1001-100110011001",
+            "33333333-1002-1002-1002-100210021002",
+            "33333333-1003-1003-1003-100310031003"
+          ]
+        }
+      ]
     },
     {
       "id": "33333333-2222-2222-2222-222222222222",
@@ -17,7 +28,19 @@
       "description": "EVKMC 전기차 AS 교육 — 고전압 시스템 작업·안전 절차·보호 장비를 학습합니다.",
       "thumbnail_url": "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=800&auto=format&fit=crop",
       "is_published": true,
-      "sort_order": 2
+      "sort_order": 2,
+      "learning_modules": [
+        {
+          "title": "고전압 안전·작업 절차",
+          "description": "PPE·전원 차단·잔류전압·현장 안전",
+          "lesson_ids": [
+            "33333333-1004-1004-1004-100410041004",
+            "33333333-1005-1005-1005-100510051005",
+            "33333333-1006-1006-1006-100610061006",
+            "33333333-1007-1007-1007-100710071007"
+          ]
+        }
+      ]
     }
   ],
   "lessons": [
@@ -30,7 +53,11 @@
       "duration_mmss": "22:43",
       "duration_seconds": 1363,
       "youtube_id": "OzxQl_Qo89k",
-      "copyright_notice": false
+      "copyright_notice": false,
+      "learning_objectives": [
+        "친환경차(EV·HEV)의 정의와 구성 요소를 설명할 수 있다",
+        "동력전달·에너지 저장 장치의 역할을 구분할 수 있다"
+      ]
     },
     {
       "id": "33333333-1002-1002-1002-100210021002",
@@ -41,7 +68,11 @@
       "duration_mmss": "18:58",
       "duration_seconds": 1138,
       "youtube_id": "b4Pq9YOyRdM",
-      "copyright_notice": false
+      "copyright_notice": false,
+      "learning_objectives": [
+        "배터리·인버터·모터의 기본 동작 원리를 이해한다",
+        "정비 시 확인해야 할 일반 주의사항을 말할 수 있다"
+      ]
     },
     {
       "id": "33333333-1003-1003-1003-100310031003",
@@ -52,7 +83,11 @@
       "duration_mmss": "19:54",
       "duration_seconds": 1194,
       "youtube_id": "pvfTWbIXQ18",
-      "copyright_notice": true
+      "copyright_notice": true,
+      "learning_objectives": [
+        "친환경차 정비 흐름(진단→조치→기록)을 설명한다",
+        "GSW 기술문서와 연계 학습 순서를 이해한다"
+      ]
     },
     {
       "id": "33333333-1004-1004-1004-100410041004",
@@ -63,7 +98,11 @@
       "duration_mmss": "43:46",
       "duration_seconds": 2626,
       "youtube_id": "OUlk9rd7Ujc",
-      "copyright_notice": true
+      "copyright_notice": true,
+      "learning_objectives": [
+        "고전압 시스템의 위험 요소를 인지한다",
+        "작업 전 전원 차단·잔류전압 확인 절차를 설명한다"
+      ]
     },
     {
       "id": "33333333-1005-1005-1005-100510051005",
@@ -74,7 +113,11 @@
       "duration_mmss": "31:26",
       "duration_seconds": 1886,
       "youtube_id": "GoscHgddqSo",
-      "copyright_notice": false
+      "copyright_notice": false,
+      "learning_objectives": [
+        "필수 PPE(절연 장갑·신발 등)를 구분한다",
+        "작업 구역·표지·2인 1조 원칙을 적용할 수 있다"
+      ]
     },
     {
       "id": "33333333-1006-1006-1006-100610061006",
@@ -85,7 +128,11 @@
       "duration_mmss": "31:24",
       "duration_seconds": 1884,
       "youtube_id": "SzTt6Ui0X_I",
-      "copyright_notice": true
+      "copyright_notice": true,
+      "learning_objectives": [
+        "고전압 케이블·커넥터 점검 시 주의점을 설명한다",
+        "측정·기록 시 제조사 절차 준수의 필요성을 이해한다"
+      ]
     },
     {
       "id": "33333333-1007-1007-1007-100710071007",
@@ -96,7 +143,11 @@
       "duration_mmss": "36:17",
       "duration_seconds": 2177,
       "youtube_id": "jcRfuJNobwU",
-      "copyright_notice": false
+      "copyright_notice": false,
+      "learning_objectives": [
+        "사고·화재·감전 대응 1차 조치를 설명한다",
+        "교육 이수 후 현장 적용·시험·수료 절차를 이해한다"
+      ]
     }
   ],
   "youtube_id_fill_guide": "Studio → 동영상 → 세부정보 → URL의 v= 뒤 11자리. 또는 공유 링크에서 추출."

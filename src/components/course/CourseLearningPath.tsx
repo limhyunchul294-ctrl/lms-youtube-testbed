@@ -1,12 +1,7 @@
 import Link from 'next/link'
+import type { LearningStep } from '@/lib/lms/types'
 
-export type LearningStep = {
-  key: string
-  label: string
-  href: string
-  status: 'locked' | 'available' | 'in_progress' | 'done'
-  detail?: string
-}
+export type { LearningStep }
 
 export default function CourseLearningPath({ steps }: { steps: LearningStep[] }) {
   return (

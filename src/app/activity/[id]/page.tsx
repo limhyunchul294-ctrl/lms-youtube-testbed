@@ -8,6 +8,7 @@ import GuideContent from '@/components/activity/GuideContent'
 import EvaluationForm, { type EvalQuestion } from '@/components/activity/EvaluationForm'
 import ExamForm, { type ExamQuestion } from '@/components/activity/ExamForm'
 import NextActionBanner from '@/components/course/NextActionBanner'
+import { checkActivityAccess, resolveActivityNextAction } from '@/lib/lms'
 import { createClient } from '@/lib/supabase'
 import { activityPath, coursePath } from '@/lib/routes'
 import { resolveActivityId, shouldRedirectToSlug } from '@/lib/resolve-ref'
@@ -135,27 +136,17 @@ export default function ActivityPage() {
         console.warn('activity gate status failed', e)
       }
 
-      const allowed =
-        act.activity_type === 'guide'
-          ? true
-          : act.activity_type === 'evaluation'
-            ? guideAcknowledged && lessonsComplete
-            : guideAcknowledged && lessonsComplete && evaluationPassed
+      const hub = coursePath(course?.slug || act.course_id)
+      const access = checkActivityAccess(act, {
+        guideAcknowledged,
+        lessonsComplete,
+        evaluationPassed,
+        hubHref: hub,
+      })
 
-      if (!allowed) {
-        const hub = coursePath(course?.slug || act.course_id)
-        if (act.activity_type === 'evaluation') {
-          setGateMessage(
-            '먼저 강의 안내를 확인하고, 영상 수강을 모두 완료한 후에 만족도 평가를 제출할 수 있습니다.'
-          )
-        } else if (act.activity_type === 'exam') {
-          setGateMessage(
-            '평가를 완료하고(합격 기준 충족) 영상 수강을 모두 완료한 후에 시험을 제출할 수 있습니다.'
-          )
-        } else {
-          setGateMessage('이 활동은 아직 이용할 수 없습니다.')
-        }
-        setGateLink(hub)
+      if (!access.allowed) {
+        setGateMessage(access.message)
+        setGateLink(access.hubHref)
         setLoading(false)
         return
       }
@@ -290,12 +281,10 @@ export default function ActivityPage() {
   const evalQuestions = (activity.config?.questions as EvalQuestion[]) || []
   const examQuestions = (activity.config?.questions as ExamQuestion[]) || []
   const hubHref = coursePath(courseRef)
-  const nextTitle =
-    activity.activity_type === 'guide'
-      ? '강의 안내를 확인한 뒤 영상 학습으로 이동해 주세요.'
-      : activity.activity_type === 'evaluation'
-        ? '평가 제출 후 온라인 시험 단계로 이동합니다.'
-        : '시험 완료 후 수료증 발급 여부를 확인해 주세요.'
+  const activityNext = resolveActivityNextAction(activity.activity_type, {
+    passed: !!result?.passed,
+    hubHref,
+  })
 
   return (
     <AppShell
@@ -314,10 +303,10 @@ export default function ActivityPage() {
       )}
       {!gateMessage && (
         <NextActionBanner
-          title={nextTitle}
-          detail={result?.passed ? '현재 단계가 완료되었습니다. 다음 단계로 이동하세요.' : '제출 전 필수 항목을 확인해 주세요.'}
-          href={result?.passed ? hubHref : undefined}
-          ctaLabel="강의 허브"
+          title={activityNext.title}
+          detail={activityNext.detail}
+          href={activityNext.href}
+          ctaLabel={activityNext.ctaLabel}
         />
       )}
 

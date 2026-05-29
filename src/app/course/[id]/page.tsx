@@ -5,8 +5,17 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/layout/AppShell'
-import CourseLearningPath, { type LearningStep } from '@/components/course/CourseLearningPath'
+import CourseLearningPath from '@/components/course/CourseLearningPath'
+import LessonCatalogMeta from '@/components/course/LessonCatalogMeta'
 import NextActionBanner from '@/components/course/NextActionBanner'
+import {
+  buildCompletedActivityIds,
+  buildLearningSteps,
+  computeLessonProgressPercent,
+  resolveNextStep,
+  stepToNextAction,
+} from '@/lib/lms'
+import { getCatalogModules } from '@/lib/lms/catalog'
 import { coursePath, lessonPath, activityPath, publicRef } from '@/lib/routes'
 import { slideProgressPercent, videoWatchPercent } from '@/lib/lesson'
 import { resolveCourseId, shouldRedirectToSlug } from '@/lib/resolve-ref'
@@ -103,18 +112,12 @@ export default function CourseDetailPage() {
         .select('activity_id, passed, answers')
         .eq('user_id', user.id)
 
-      const done = new Set<string>()
-      ;(subs || []).forEach((s) => {
-        const act = (acts || []).find((a: CourseActivity) => a.id === s.activity_id)
-        if (!act) return
-        if (act.activity_type === 'guide' && (s.answers as { acknowledged?: boolean })?.acknowledged) {
-          done.add(s.activity_id)
-        }
-        if ((act.activity_type === 'evaluation' || act.activity_type === 'exam') && s.passed) {
-          done.add(s.activity_id)
-        }
-      })
-      setSubmissions(done)
+      setSubmissions(
+        buildCompletedActivityIds(
+          (acts || []) as CourseActivity[],
+          (subs || []) as { activity_id: string; passed?: boolean | null; answers?: Record<string, unknown> }[]
+        )
+      )
 
       const { data: st } = await supabase.rpc('get_course_learning_status', {
         p_course_id: resolved.id,
@@ -131,92 +134,28 @@ export default function CourseDetailPage() {
   const overallPct =
     status?.course_complete
       ? 100
-      : totalCount > 0
-        ? Math.round((completedCount / totalCount) * 100)
-        : 0
+      : computeLessonProgressPercent(completedCount, totalCount)
 
-  const learningSteps: LearningStep[] = useMemo(() => {
-    const guide = activities.find((a) => a.activity_type === 'guide')
-    const evaluation = activities.find((a) => a.activity_type === 'evaluation')
-    const exam = activities.find((a) => a.activity_type === 'exam')
+  const catalogModules = courseId ? getCatalogModules(courseId) : []
 
-    const guideDone = guide ? submissions.has(guide.id) : true
-    const lessonsDone = totalCount > 0 && completedCount >= totalCount
-    const evalDone = evaluation ? submissions.has(evaluation.id) : true
-    const examDone = exam ? submissions.has(exam.id) : true
-
-    const firstLesson = lessons[0]
-    const lessonHref = firstLesson
-      ? lessonPath(publicRef({ id: firstLesson.lesson_id, slug: lessonSlugById[firstLesson.lesson_id] }))
-      : '#'
-
-    return [
-      {
-        key: 'guide',
-        label: '강의 안내 · 수강 규정',
-        href: guide ? activityPath(publicRef(guide)) : '#',
-        status: !guide
-          ? 'done'
-          : guideDone
-            ? 'done'
-            : enrolled
-              ? 'available'
-              : 'locked',
-        detail: guideDone ? '확인 완료' : '수강 전 필독',
-      },
-      {
-        key: 'lessons',
-        label: '영상 수강',
-        href: lessonHref,
-        status: !enrolled
-          ? 'locked'
-          : lessonsDone
-            ? 'done'
-            : guideDone || !guide
-              ? completedCount > 0
-                ? 'in_progress'
-                : 'available'
-              : 'locked',
-        detail: `${completedCount}/${totalCount} 강 완료`,
-      },
-      {
-        key: 'evaluation',
-        label: '강의 만족도 평가',
-        href: evaluation ? activityPath(publicRef(evaluation)) : '#',
-        status: !evaluation
-          ? 'done'
-          : evalDone
-            ? 'done'
-            : lessonsDone
-              ? 'available'
-              : 'locked',
-        detail: evalDone ? '제출 완료' : '전 강의 수강 후 진행',
-      },
-      {
-        key: 'exam',
-        label: '온라인 시험',
-        href: exam ? activityPath(publicRef(exam)) : '#',
-        status: !exam
-          ? 'done'
-          : examDone
-            ? 'done'
-            : evalDone || !evaluation
-              ? lessonsDone
-                ? 'available'
-                : 'locked'
-              : 'locked',
-        detail: examDone ? '합격' : `합격 기준 ${Number(exam?.config?.pass_score ?? 70)}점`,
-      },
-    ]
-  }, [
-    activities,
-    submissions,
-    lessons,
-    enrolled,
-    completedCount,
-    totalCount,
-    lessonSlugById,
-  ])
+  const learningSteps = useMemo(
+    () =>
+      buildLearningSteps({
+        enrolled,
+        activities,
+        completedActivityIds: submissions,
+        lessons: lessons.map((l) => ({
+          lesson_id: l.lesson_id,
+          is_completed: l.is_completed,
+          sort_order: l.sort_order,
+        })),
+        lessonHref: (lessonId) =>
+          lessonPath(publicRef({ id: lessonId, slug: lessonSlugById[lessonId] })),
+        activityHref: (act) => activityPath(publicRef(act)),
+        status,
+      }),
+    [activities, submissions, lessons, enrolled, lessonSlugById, status]
+  )
 
   const formatDuration = (s: number) => {
     if (s <= 0) return ''
@@ -233,7 +172,8 @@ export default function CourseDetailPage() {
   }
 
   const guideAct = activities.find((a) => a.activity_type === 'guide')
-  const nextStep = learningSteps.find((s) => s.status === 'available' || s.status === 'in_progress')
+  const nextStep = resolveNextStep(learningSteps)
+  const nextAction = nextStep ? stepToNextAction(nextStep) : null
 
   return (
     <AppShell title={course?.title || '강의'} subtitle={course?.description || undefined}>
@@ -264,12 +204,12 @@ export default function CourseDetailPage() {
           </Link>
         </div>
       )}
-      {!status?.course_complete && nextStep && (
+      {!status?.course_complete && nextAction && (
         <NextActionBanner
-          title={nextStep.label}
-          detail={nextStep.detail}
-          href={nextStep.href !== '#' ? nextStep.href : undefined}
-          ctaLabel={nextStep.status === 'in_progress' ? '이어하기' : '시작하기'}
+          title={nextAction.title}
+          detail={nextAction.detail}
+          href={nextAction.href}
+          ctaLabel={nextAction.ctaLabel}
         />
       )}
 
@@ -298,8 +238,28 @@ export default function CourseDetailPage() {
       </div>
 
       <h2 className="text-sm font-semibold text-[var(--text)] mb-3">강의 목차</h2>
-      <div className="space-y-2">
-        {lessons.map((lesson, idx) => {
+      <div className="space-y-4">
+        {(catalogModules.length > 0
+          ? catalogModules.map((mod) => ({
+              title: mod.title,
+              description: mod.description,
+              lessons: lessons
+                .filter((l) => mod.lesson_ids.includes(l.lesson_id))
+                .sort((a, b) => a.sort_order - b.sort_order),
+            }))
+          : [{ title: null, description: null, lessons: [...lessons].sort((a, b) => a.sort_order - b.sort_order) }]
+        ).map((group, gi) => (
+          <div key={group.title ?? `group-${gi}`}>
+            {group.title && (
+              <div className="mb-2 px-1">
+                <p className="text-xs font-semibold text-[var(--text)]">{group.title}</p>
+                {group.description && (
+                  <p className="text-[10px] text-[var(--text-muted)]">{group.description}</p>
+                )}
+              </div>
+            )}
+            <div className="space-y-2">
+              {group.lessons.map((lesson, idx) => {
           const locked =
             !enrolled ||
             (guideAct && !submissions.has(guideAct.id))
@@ -328,6 +288,7 @@ export default function CourseDetailPage() {
                 >
                   {lesson.lesson_title}
                 </h3>
+                <LessonCatalogMeta lessonId={lesson.lesson_id} />
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] uppercase text-[var(--text-muted)]">
                     {lesson.lesson_type === 'slides' ? '슬라이드' : '영상'}
@@ -391,7 +352,10 @@ export default function CourseDetailPage() {
               {inner}
             </Link>
           )
-        })}
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </AppShell>
   )

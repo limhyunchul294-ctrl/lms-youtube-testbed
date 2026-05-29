@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { videoWatchPercent } from '@/lib/lesson'
+import { LMS_COMPLETION_RATIO } from '@/lib/lms/rules'
 
 declare global {
   interface Window {
@@ -20,7 +21,7 @@ interface Props {
   onComplete?: () => void
 }
 
-const COMPLETION_RATIO = 0.9
+const COMPLETION_RATIO = LMS_COMPLETION_RATIO
 
 let apiReadyQueue: Array<() => void> = []
 let apiLoading = false

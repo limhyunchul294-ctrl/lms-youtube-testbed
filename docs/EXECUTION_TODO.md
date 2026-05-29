@@ -38,6 +38,9 @@
   - 반영: `supabase/migrations/20250529100000_learning_outcomes.sql`
   - 반영: `src/components/admin/LearningOutcomesPanel.tsx`
 
+## 아키텍처
+- 최소 참고 구조(4단계 학습 경로·카탈로그·도메인 규칙): `docs/LMS_MINIMAL_ARCHITECTURE.md`, `src/lib/lms/`
+
 ## 진행 규칙
 - 모든 DB 구조 변경은 반드시 `supabase/migrations/*.sql`로 관리한다.
 - 정책/권한 변경은 기능 개발보다 우선한다.

@@ -1,3 +1,5 @@
+import { LMS_COMPLETION_RATIO } from '@/lib/lms/rules'
+
 export type LessonType = 'video' | 'slides'
 
 export interface SlideItem {
@@ -31,7 +33,7 @@ export function slideProgressPercent(furthestIndex: number, totalSlides: number)
 
 export function isSlideLessonComplete(furthestIndex: number, totalSlides: number): boolean {
   if (totalSlides <= 0) return false
-  return (furthestIndex + 1) / totalSlides >= 0.9
+  return (furthestIndex + 1) / totalSlides >= LMS_COMPLETION_RATIO
 }
 
 /** 슬라이드 1장당 기본 체류 시간(초) — duration_seconds 산정용 */
