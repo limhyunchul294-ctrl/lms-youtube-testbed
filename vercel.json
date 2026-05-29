@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "env": {
+    "NEXT_PUBLIC_GSW_PORTAL_URL": "https://evkmc-as-app.vercel.app"
+  },
   "crons": [
     {
       "path": "/api/sync/airtable",
