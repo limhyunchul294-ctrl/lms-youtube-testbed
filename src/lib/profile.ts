@@ -6,6 +6,10 @@ export type LearnerProfile = {
   display_name: string | null
   department: string | null
   gsw_user_id: string | null
+  gsw_username: string | null
+  phone: string | null
+  gsw_role: string | null
+  gsw_grade: string | null
   employee_no: string | null
   position: string | null
   company: string | null
@@ -19,6 +23,10 @@ export function profileFromUserMetadata(user: User): Partial<LearnerProfile> {
     display_name: (m.full_name as string) || (m.name as string) || null,
     department: (m.department as string) || null,
     gsw_user_id: (m.gsw_user_id as string) || null,
+    gsw_username: (m.gsw_username as string) || (m.username as string) || null,
+    phone: (m.phone as string) || null,
+    gsw_role: (m.gsw_role as string) || (m.role as string) || null,
+    gsw_grade: (m.gsw_grade as string) || (m.grade as string) || null,
     employee_no: (m.employee_no as string) || (m.employee_id as string) || null,
     position: (m.position as string) || (m.title as string) || null,
     company: (m.company as string) || (m.org as string) || null,
@@ -39,6 +47,10 @@ export async function syncProfileFromAuthUser(
     display_name: partial.display_name || partial.email.split('@')[0],
     department: partial.department ?? null,
     gsw_user_id: partial.gsw_user_id ?? null,
+    gsw_username: partial.gsw_username ?? null,
+    phone: partial.phone ?? null,
+    gsw_role: partial.gsw_role ?? null,
+    gsw_grade: partial.gsw_grade ?? null,
     employee_no: partial.employee_no ?? null,
     position: partial.position ?? null,
     company: partial.company ?? null,

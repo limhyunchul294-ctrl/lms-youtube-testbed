@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import PageWatermark from '@/components/layout/PageWatermark'
 import type { LearnerProfile } from '@/lib/profile'
 import { profileFromUserMetadata, syncProfileFromAuthUser } from '@/lib/profile'
+import { buildGswProfileLines } from '@/lib/gsw-profile-labels'
 
 const NAV = [
   { href: '/dashboard', label: '내 학습', icon: '📚' },
@@ -16,12 +17,7 @@ const NAV = [
 
 function ProfileCard({ profile, compact }: { profile: LearnerProfile | null; compact?: boolean }) {
   if (!profile) return null
-  const lines: { label: string; value: string }[] = []
-  if (profile.gsw_user_id) lines.push({ label: 'GSW', value: profile.gsw_user_id })
-  if (profile.employee_no) lines.push({ label: '사번', value: profile.employee_no })
-  if (profile.department) lines.push({ label: '부서', value: profile.department })
-  if (profile.position) lines.push({ label: '직급', value: profile.position })
-  if (profile.company) lines.push({ label: '소속', value: profile.company })
+  const lines = buildGswProfileLines(profile)
 
   return (
     <div className={compact ? 'space-y-0.5' : 'space-y-1'}>
@@ -29,7 +25,7 @@ function ProfileCard({ profile, compact }: { profile: LearnerProfile | null; com
         {profile.display_name || profile.email}
       </p>
       {lines.map((l) => (
-        <p key={l.label} className="text-[10px] text-[var(--text-muted)] truncate">
+        <p key={l.label} className="text-[10px] text-[var(--text-muted)] truncate leading-snug">
           <span className="text-slate-400">{l.label}</span> {l.value}
         </p>
       ))}
@@ -127,7 +123,15 @@ export default function AppShell({
       let row = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       let p = row.data as LearnerProfile | null
 
-      if (!p?.gsw_user_id && user.user_metadata?.gsw_user_id) {
+      const m = user.user_metadata
+      const needsGswSync =
+        m?.gsw_user_id &&
+        (!p?.gsw_user_id ||
+          (!p?.gsw_role && m.gsw_role) ||
+          (!p?.phone && m.phone) ||
+          (!p?.gsw_grade && m.gsw_grade) ||
+          (!p?.gsw_username && (m.gsw_username || m.username)))
+      if (needsGswSync) {
         p = await syncProfileFromAuthUser(supabase, user)
       }
 

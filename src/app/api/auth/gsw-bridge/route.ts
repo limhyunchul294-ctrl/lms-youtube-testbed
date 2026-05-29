@@ -23,8 +23,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: verified.error }, { status: 401 })
   }
 
-  const { email, name, gsw_user_id, department, employee_no, employee_id, position, company } =
-    verified.payload
+  const {
+    email,
+    name,
+    gsw_user_id,
+    department,
+    username,
+    phone,
+    role,
+    grade,
+    employee_no,
+    employee_id,
+    position,
+    company,
+  } = verified.payload
   const employeeNo = employee_no || employee_id
   const admin = createServiceSupabase()
   const normalizedEmail = email.trim().toLowerCase()
@@ -61,6 +73,10 @@ export async function POST(req: NextRequest) {
         full_name: name || '',
         gsw_user_id,
         department: department || null,
+        gsw_username: username || null,
+        phone: phone || null,
+        gsw_role: role || null,
+        gsw_grade: grade || null,
         employee_no: employeeNo || null,
         position: position || null,
         company: company || null,
@@ -83,6 +99,10 @@ export async function POST(req: NextRequest) {
       display_name: name || normalizedEmail.split('@')[0],
       department: department || null,
       gsw_user_id,
+      gsw_username: username || null,
+      phone: phone || null,
+      gsw_role: role || null,
+      gsw_grade: grade || null,
       employee_no: employeeNo || null,
       position: position || null,
       company: company || null,
@@ -104,6 +124,10 @@ export async function POST(req: NextRequest) {
       full_name: name || normalizedEmail.split('@')[0],
       gsw_user_id,
       department: department || null,
+      gsw_username: username || null,
+      phone: phone || null,
+      gsw_role: role || null,
+      gsw_grade: grade || null,
       employee_no: employeeNo || null,
       position: position || null,
       company: company || null,

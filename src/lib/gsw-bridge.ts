@@ -15,6 +15,10 @@ export type GswBridgePayload = {
   name?: string
   gsw_user_id: string
   department?: string
+  username?: string
+  phone?: string
+  role?: string
+  grade?: string
   employee_no?: string
   employee_id?: string
   position?: string
