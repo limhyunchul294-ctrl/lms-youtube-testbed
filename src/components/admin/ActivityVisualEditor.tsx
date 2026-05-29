@@ -75,9 +75,13 @@ function Preview({
 
   if (activityType === 'guide') {
     const sections = (config.sections as { title: string; body: string }[]) || []
+    const scenarios =
+      (config.scenarios as { title?: string; symptom: string; diagnosis: string; action: string }[]) ||
+      []
     return (
       <GuideContent
         sections={sections}
+        scenarios={scenarios}
         acknowledged={false}
         onAcknowledgedChange={() => {}}
         disabled

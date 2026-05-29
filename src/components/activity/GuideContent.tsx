@@ -1,12 +1,17 @@
+import ScenarioCardDeck from '@/components/activity/ScenarioCardDeck'
+import type { ScenarioCard } from '@/data/evkmc-scenarios'
+
 type Section = { title: string; body: string }
 
 export default function GuideContent({
   sections,
+  scenarios = [],
   acknowledged,
   onAcknowledgedChange,
   disabled,
 }: {
   sections: Section[]
+  scenarios?: ScenarioCard[]
   acknowledged: boolean
   onAcknowledgedChange: (v: boolean) => void
   disabled?: boolean
@@ -24,6 +29,7 @@ export default function GuideContent({
           </p>
         </section>
       ))}
+      {scenarios.length > 0 && <ScenarioCardDeck scenarios={scenarios} />}
       <label className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-sm cursor-pointer touch-manipulation">
         <input
           type="checkbox"

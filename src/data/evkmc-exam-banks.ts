@@ -4,7 +4,11 @@ export type ExamBankItem = {
   label: string
   options: string[]
   correct: number
+  kind?: 'recall' | 'case'
+  stem?: string
 }
+
+export type ExamQuestionSeed = ExamBankItem & { id: string }
 
 const ecoBank: ExamBankItem[] = [
   {
@@ -59,6 +63,85 @@ const ecoBank: ExamBankItem[] = [
   },
 ]
 
+const ecoCaseBank: ExamBankItem[] = [
+  {
+    kind: 'case',
+    stem: '친환경차 고객이 급가속 시 출력 제한과 HV 경고등이 켜진다고 합니다. 정비 이력상 최근 충전기 불량 접촉 이력이 있습니다.',
+    label: '가장 먼저 수행할 점검 순서로 적절한 것은?',
+    options: [
+      '즉시 배터리 팩 분해',
+      'DTC·충전 이력 확인 후 제조사 절차에 따른 전원 차단·측정',
+      '일반 승용차와 동일하게 엔진 오일 교환',
+      '고객 안내 없이 시운전',
+    ],
+    correct: 1,
+  },
+  {
+    kind: 'case',
+    stem: '완속 충전 중 충전이 10분 후 중단된다고 합니다. 인렛 주변에 습기 흔적이 보입니다.',
+    label: '우선 의심·조치로 가장 적절한 것은?',
+    options: [
+      '인렛·케이블·차량 측 인터록·접지 상태 점검',
+      '타이어 공기압만 조정',
+      '엔진 냉각수 교환',
+      '배터리 셀 임의 교체',
+    ],
+    correct: 0,
+  },
+  {
+    kind: 'case',
+    stem: '저속 회생 제동 시 모터 구역에서 금속성 소음이 난다고 합니다. 최근 리프트 작업 후 볼트 체결 이력이 불명확합니다.',
+    label: '안전한 대응으로 적절한 것은?',
+    options: [
+      '고속 시운전으로 재현',
+      '무리한 주행 중단 후 고정·마모·토크 점검',
+      '고전압 배터리 즉시 개방',
+      'PPE 없이 측정',
+    ],
+    correct: 1,
+  },
+  {
+    kind: 'case',
+    stem: '겨울철 주행 후 충전이 시작되지 않는다고 합니다. 배터리 온도 관련 경고가 간헐적으로 표시됩니다.',
+    label: '다음 조치로 가장 적절한 것은?',
+    options: [
+      'BMS·온도 센서·충전 조건(프리컨디셔닝) 확인',
+      '연료 필터 교환',
+      '와이퍼 모터 교체',
+      '배터리 방전 방치',
+    ],
+    correct: 0,
+  },
+]
+
+const hvCaseBank: ExamBankItem[] = [
+  ...ecoCaseBank,
+  {
+    kind: 'case',
+    stem: '고전압 작업 구역에서 승인되지 않은 금속 도구를 사용한 뒤 아크 소리가 났다고 보고됩니다.',
+    label: '즉시 취해야 할 조치로 적절한 것은?',
+    options: [
+      '작업 중단·전원 차단·2인 확인·사고 보고',
+      '작업 계속',
+      '고객에게 직접 측정 요청',
+      'PPE 미착용 상태 점검',
+    ],
+    correct: 0,
+  },
+  {
+    kind: 'case',
+    stem: '배터리 팩 주변에서 화학 냄새와 온도 상승이 관측되었습니다. 차량이 최근 충돌 사고를 당했습니다.',
+    label: '가장 우선할 안전 조치는?',
+    options: [
+      '격리·전원 차단·열폭주 대비·전문 인력 호출',
+      '즉시 급속 충전',
+      '배터리 개방 후 환기만 실시',
+      '일반 세차',
+    ],
+    correct: 0,
+  },
+]
+
 const hvBank: ExamBankItem[] = [
   ...ecoBank,
   {
@@ -88,26 +171,70 @@ const hvBank: ExamBankItem[] = [
   },
 ]
 
-export function buildExamQuestionsFromBank(
-  bank: ExamBankItem[],
-  count: number
-): Array<ExamBankItem & { id: string }> {
+function pickFromBank(bank: ExamBankItem[], index: number, suffix: string): ExamBankItem {
+  const item = bank[index % bank.length]
+  return {
+    ...item,
+    label: suffix ? `[${suffix}] ${item.label}` : item.label,
+  }
+}
+
+export function buildExamQuestionsFromBank(bank: ExamBankItem[], count: number): ExamQuestionSeed[] {
   if (count <= 0) return []
   return Array.from({ length: count }, (_, i) => {
-    const item = bank[i % bank.length]
+    const item = pickFromBank(bank, i, count > bank.length ? String(i + 1) : '')
     return {
       id: `q${i + 1}`,
-      label: count > bank.length ? `[${i + 1}] ${item.label}` : item.label,
+      label: item.label,
       options: item.options,
       correct: item.correct,
+      ...(item.kind ? { kind: item.kind } : {}),
+      ...(item.stem ? { stem: item.stem } : {}),
     }
   })
 }
 
-export function getEcoExamQuestions(count = 30) {
-  return buildExamQuestionsFromBank(ecoBank, count)
+/** 암기형·사례판단형을 혼합한 시험 문항 생성 (기본 사례 비율 35%) */
+export function buildMixedExamQuestions(
+  recallBank: ExamBankItem[],
+  caseBank: ExamBankItem[],
+  count: number,
+  caseRatio = 0.35
+): ExamQuestionSeed[] {
+  if (count <= 0) return []
+  const caseCount = Math.min(count, Math.max(1, Math.round(count * caseRatio)))
+  const recallCount = count - caseCount
+
+  const caseItems = Array.from({ length: caseCount }, (_, i) => {
+    const item = pickFromBank(caseBank, i, caseCount > caseBank.length ? `사례${i + 1}` : '')
+    return {
+      id: `c${i + 1}`,
+      kind: 'case' as const,
+      stem: item.stem || item.label,
+      label: item.label,
+      options: item.options,
+      correct: item.correct,
+    }
+  })
+
+  const recallItems = Array.from({ length: recallCount }, (_, i) => {
+    const item = pickFromBank(recallBank, i, recallCount > recallBank.length ? String(i + 1) : '')
+    return {
+      id: `r${i + 1}`,
+      kind: 'recall' as const,
+      label: item.label,
+      options: item.options,
+      correct: item.correct,
+    }
+  })
+
+  return [...caseItems, ...recallItems].map((q, i) => ({ ...q, id: `q${i + 1}` }))
 }
 
-export function getHvExamQuestions(count = 60) {
-  return buildExamQuestionsFromBank(hvBank, count)
+export function getEcoExamQuestions(count = 30, caseRatio = 0.35) {
+  return buildMixedExamQuestions(ecoBank, ecoCaseBank, count, caseRatio)
+}
+
+export function getHvExamQuestions(count = 60, caseRatio = 0.35) {
+  return buildMixedExamQuestions(hvBank, hvCaseBank, count, caseRatio)
 }

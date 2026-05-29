@@ -30,9 +30,13 @@
   - 반영: `src/app/admin/activities/page.tsx`
 
 ### P2 (중기, 학습 효과 강화)
-- [ ] 현업 시나리오형 학습카드 템플릿 도입 (증상-진단-조치)
-- [ ] 시험 문항을 암기형 중심에서 사례판단형 비중 확대
-- [ ] 학습 성과 대시보드(완주율/정답률/재시도률) 확장
+- [x] 현업 시나리오형 학습카드 템플릿 도입 (증상-진단-조치)
+  - 반영: `src/data/evkmc-scenarios.ts`, `ScenarioCardDeck.tsx`, `GuideContent.tsx`
+- [x] 시험 문항을 암기형 중심에서 사례판단형 비중 확대
+  - 반영: `src/data/evkmc-exam-banks.ts` (혼합 시드, 기본 사례 35%)
+- [x] 학습 성과 대시보드(완주율/정답률/재시도률) 확장
+  - 반영: `supabase/migrations/20250529100000_learning_outcomes.sql`
+  - 반영: `src/components/admin/LearningOutcomesPanel.tsx`
 
 ## 진행 규칙
 - 모든 DB 구조 변경은 반드시 `supabase/migrations/*.sql`로 관리한다.

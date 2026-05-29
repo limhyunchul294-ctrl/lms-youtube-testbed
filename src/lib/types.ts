@@ -66,6 +66,19 @@ export interface AdminProgress {
   progress_pct: number
 }
 
+export interface LearningOutcomeRow {
+  course_id: string
+  course_title: string
+  enrolled_count: number
+  course_complete_count: number
+  completion_rate: number
+  exam_submit_count: number
+  exam_pass_count: number
+  exam_pass_rate: number
+  exam_retry_count: number
+  exam_avg_score: number
+}
+
 export type ActivityType = 'guide' | 'evaluation' | 'exam'
 
 export interface CourseActivity {

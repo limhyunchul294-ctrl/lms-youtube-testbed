@@ -48,6 +48,7 @@ const EXAM_QUESTIONS = [
 ]
 
 import { EVKMC_COURSE_IDS } from '@/lib/evkmc'
+import { EVKMC_GUIDE_SCENARIOS } from '@/data/evkmc-scenarios'
 
 export { EVKMC_COURSE_IDS }
 
@@ -86,7 +87,7 @@ export function buildEvkmcActivityRows() {
       activity_type: 'guide' as const,
       title: '강의 안내 및 수강 규정',
       description: '수강 전 반드시 확인해 주세요.',
-      config: { sections: GUIDE_SECTIONS },
+      config: { sections: GUIDE_SECTIONS, scenarios: EVKMC_GUIDE_SCENARIOS },
       sort_order: 0,
       is_required: true,
     },

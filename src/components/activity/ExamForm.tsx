@@ -3,6 +3,8 @@ export type ExamQuestion = {
   label: string
   options: string[]
   correct: number
+  kind?: 'recall' | 'case'
+  stem?: string
 }
 
 export default function ExamForm({
@@ -23,6 +25,13 @@ export default function ExamForm({
       <p className="text-sm text-[var(--text-muted)] rounded-lg bg-[var(--accent-soft)] px-3 py-2">
         합격 기준: <strong className="text-[var(--accent)]">{passScore}점</strong> 이상 · 문항{' '}
         {questions.length}개
+        {questions.some((q) => q.kind === 'case') && (
+          <>
+            {' '}
+            · 사례판단{' '}
+            <strong>{questions.filter((q) => q.kind === 'case').length}</strong>문항 포함
+          </>
+        )}
       </p>
       {questions.map((q, qi) => (
         <fieldset
@@ -30,12 +39,22 @@ export default function ExamForm({
           disabled={disabled}
           className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 md:p-5"
         >
-          <legend className="text-sm font-medium text-[var(--text)] mb-3 block">
+          <legend className="text-sm font-medium text-[var(--text)] mb-3 block w-full">
             <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-xs mr-2">
               {qi + 1}
             </span>
+            {q.kind === 'case' && (
+              <span className="inline-block mr-2 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800">
+                사례
+              </span>
+            )}
             {q.label}
           </legend>
+          {q.stem && (
+            <p className="text-sm text-[var(--text-muted)] mb-3 leading-relaxed whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 border border-[var(--border)]">
+              {q.stem}
+            </p>
+          )}
           <div className="space-y-2">
             {q.options.map((opt, oi) => (
               <label

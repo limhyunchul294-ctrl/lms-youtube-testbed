@@ -133,7 +133,13 @@ export default function AdminActivitiesPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'import 실패')
-      setMessage(`시험 문항 ${data.question_count}개 반영 완료 (${courseId === EVKMC_COURSE_IDS.eco ? '친환경차' : '고전압'})`)
+      const caseHint =
+        typeof data.case_count === 'number'
+          ? ` · 사례판단 ${data.case_count}문항`
+          : ''
+      setMessage(
+        `시험 문항 ${data.question_count}개 반영 완료 (${courseId === EVKMC_COURSE_IDS.eco ? '친환경차' : '고전압'})${caseHint}`
+      )
       const { data: refreshed } = await supabase
         .from('course_activities')
         .select('*')

@@ -1,6 +1,7 @@
 import type { ActivityType } from '@/lib/types'
 
 type GuideSection = { title: string; body: string }
+type GuideScenario = { title?: string; symptom: string; diagnosis: string; action: string }
 type EvalQuestion = {
   id: string
   label: string
@@ -13,6 +14,8 @@ type ExamQuestion = {
   label: string
   options: string[]
   correct: number
+  kind?: 'recall' | 'case'
+  stem?: string
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -38,7 +41,26 @@ function validateGuideConfig(config: Record<string, unknown>) {
       body: requireString(s.body, `sections[${i}].body`),
     }
   })
-  return { sections: normalized }
+
+  const out: { sections: GuideSection[]; scenarios?: GuideScenario[] } = { sections: normalized }
+  if (config.scenarios !== undefined) {
+    if (!Array.isArray(config.scenarios)) {
+      throw new Error('guide config의 scenarios는 배열이어야 합니다.')
+    }
+    out.scenarios = config.scenarios.map((raw, i) => {
+      if (!isRecord(raw)) throw new Error(`scenarios[${i}] 형식이 올바르지 않습니다.`)
+      const item: GuideScenario = {
+        symptom: requireString(raw.symptom, `scenarios[${i}].symptom`),
+        diagnosis: requireString(raw.diagnosis, `scenarios[${i}].diagnosis`),
+        action: requireString(raw.action, `scenarios[${i}].action`),
+      }
+      if (raw.title !== undefined && raw.title !== null && String(raw.title).trim()) {
+        item.title = String(raw.title).trim()
+      }
+      return item
+    })
+  }
+  return out
 }
 
 function validateEvaluationConfig(config: Record<string, unknown>) {
@@ -90,12 +112,26 @@ function validateExamConfig(config: Record<string, unknown>) {
     if (!Number.isInteger(correct) || correct < 0 || correct >= optionTexts.length) {
       throw new Error(`questions[${i}].correct는 0~(옵션수-1) 정수여야 합니다.`)
     }
-    return {
+    const item: ExamQuestion = {
       id: requireString(q.id, `questions[${i}].id`),
       label: requireString(q.label, `questions[${i}].label`),
       options: optionTexts,
       correct,
     }
+    if (q.kind !== undefined) {
+      if (q.kind !== 'recall' && q.kind !== 'case') {
+        throw new Error(`questions[${i}].kind는 recall 또는 case여야 합니다.`)
+      }
+      item.kind = q.kind
+    }
+    if (q.stem !== undefined && q.stem !== null && String(q.stem).trim()) {
+      item.stem = String(q.stem).trim()
+      if (item.kind === undefined) item.kind = 'case'
+    }
+    if (item.kind === 'case' && !item.stem) {
+      throw new Error(`questions[${i}] 사례형(case)은 stem(사례 설명)이 필요합니다.`)
+    }
+    return item
   })
   return { pass_score: Math.round(passScoreRaw), questions: normalized }
 }

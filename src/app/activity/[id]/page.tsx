@@ -11,6 +11,7 @@ import NextActionBanner from '@/components/course/NextActionBanner'
 import { createClient } from '@/lib/supabase'
 import { activityPath, coursePath } from '@/lib/routes'
 import { resolveActivityId, shouldRedirectToSlug } from '@/lib/resolve-ref'
+import type { ScenarioCard } from '@/data/evkmc-scenarios'
 import type { ActivityType, CourseActivity } from '@/lib/types'
 
 export default function ActivityPage() {
@@ -220,7 +221,23 @@ export default function ActivityPage() {
       })
       score = questions.length ? Math.round((correct / questions.length) * 100) : 0
       passed = score >= passScore
-      payload = { ...answers, correct_count: correct, total: questions.length }
+
+      const { data: prevSub } = await supabase
+        .from('activity_submissions')
+        .select('answers')
+        .eq('activity_id', activity.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const prevAttempts = Number(
+        (prevSub?.answers as { attempt_count?: number } | null)?.attempt_count ?? 0
+      )
+
+      payload = {
+        ...answers,
+        correct_count: correct,
+        total: questions.length,
+        attempt_count: prevAttempts + 1,
+      }
     }
 
     const { error } = await supabase.from('activity_submissions').upsert(
@@ -269,6 +286,7 @@ export default function ActivityPage() {
   }
 
   const sections = (activity.config?.sections as { title: string; body: string }[]) || []
+  const scenarios = (activity.config?.scenarios as ScenarioCard[]) || []
   const evalQuestions = (activity.config?.questions as EvalQuestion[]) || []
   const examQuestions = (activity.config?.questions as ExamQuestion[]) || []
   const hubHref = coursePath(courseRef)
@@ -322,6 +340,7 @@ export default function ActivityPage() {
         <div className="mb-6">
           <GuideContent
             sections={sections}
+            scenarios={scenarios}
             acknowledged={acknowledged}
             onAcknowledgedChange={setAcknowledged}
             disabled={!!result?.passed}

@@ -14,6 +14,8 @@ type ExamQuestion = {
   label: string
   options: string[]
   correct: number
+  kind?: 'recall' | 'case'
+  stem?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -27,6 +29,7 @@ export async function POST(req: NextRequest) {
       questions?: ExamQuestion[]
       use_bank?: boolean
       question_count?: number
+      case_ratio?: number
     } = {}
 
     try {
@@ -46,13 +49,17 @@ export async function POST(req: NextRequest) {
     const defaultCount = courseId === EVKMC_COURSE_IDS.eco ? 30 : 60
     const count = body.question_count ?? defaultCount
     const passScore = body.pass_score ?? 70
+    const caseRatio =
+      typeof body.case_ratio === 'number' && body.case_ratio >= 0 && body.case_ratio <= 1
+        ? body.case_ratio
+        : 0.35
 
     let questions: ExamQuestion[] = body.questions || []
     if ((!questions.length || body.use_bank) && !body.questions?.length) {
       questions =
         courseId === EVKMC_COURSE_IDS.eco
-          ? getEcoExamQuestions(count)
-          : getHvExamQuestions(count)
+          ? getEcoExamQuestions(count, caseRatio)
+          : getHvExamQuestions(count, caseRatio)
     }
 
     if (!questions.length) {
@@ -84,11 +91,15 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
+    const caseCount = questions.filter((q) => q.kind === 'case').length
+
     return NextResponse.json({
       ok: true,
       course_id: courseId,
       activity_id: activityId,
       question_count: questions.length,
+      case_count: caseCount,
+      case_ratio: caseRatio,
       pass_score: passScore,
     })
   } catch (e) {
