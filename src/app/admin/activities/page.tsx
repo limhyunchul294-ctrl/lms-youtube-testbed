@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/layout/AppShell'
 import { createClient } from '@/lib/supabase'
 import { EVKMC_COURSE_IDS } from '@/lib/evkmc'
-import type { CourseActivity } from '@/lib/types'
+import type { ActivityType, CourseActivity } from '@/lib/types'
 import ActivityVisualEditor from '@/components/admin/ActivityVisualEditor'
 import { publicRef } from '@/lib/routes'
 
@@ -14,6 +14,10 @@ export default function AdminActivitiesPage() {
   const router = useRouter()
   const supabase = createClient()
   const [activities, setActivities] = useState<CourseActivity[]>([])
+  const [courseTitles, setCourseTitles] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [courseFilter, setCourseFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | ActivityType>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [configJson, setConfigJson] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -33,11 +37,20 @@ export default function AdminActivitiesPage() {
         return
       }
 
-      const { data } = await supabase
-        .from('course_activities')
-        .select('*')
-        .order('course_id')
-        .order('sort_order')
+      const [{ data }, { data: courses }] = await Promise.all([
+        supabase
+          .from('course_activities')
+          .select('*')
+          .order('course_id')
+          .order('sort_order'),
+        supabase.from('courses').select('id, title'),
+      ])
+
+      const titles: Record<string, string> = {}
+      for (const c of courses || []) {
+        if (c.id && c.title) titles[c.id] = c.title
+      }
+      setCourseTitles(titles)
 
       setActivities((data || []) as CourseActivity[])
       if (data?.[0]) {
@@ -48,6 +61,26 @@ export default function AdminActivitiesPage() {
     }
     init()
   }, [router, supabase])
+
+  const filteredActivities = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return activities.filter((act) => {
+      if (courseFilter !== 'all' && act.course_id !== courseFilter) return false
+      if (typeFilter !== 'all' && act.activity_type !== typeFilter) return false
+      if (!q) return true
+      const haystack = [
+        act.title,
+        act.description ?? '',
+        act.slug ?? '',
+        act.activity_type,
+        courseTitles[act.course_id] ?? '',
+        publicRef(act),
+      ]
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [activities, searchQuery, courseFilter, typeFilter, courseTitles])
 
   const selected = activities.find((a) => a.id === selectedId)
 
@@ -164,25 +197,69 @@ export default function AdminActivitiesPage() {
       )}
 
       <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1 space-y-2">
-          {activities.map((act) => (
-            <button
-              key={act.id}
-              type="button"
-              onClick={() => selectActivity(act)}
-              className={`w-full text-left rounded-xl border p-3 text-sm transition ${
-                selectedId === act.id
-                  ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                  : 'border-[var(--border)] bg-[var(--card)] hover:border-slate-300'
-              }`}
-            >
-              <span className="text-[10px] uppercase text-[var(--text-muted)]">{act.activity_type}</span>
-              <p className="font-medium text-[var(--text)] mt-0.5">{act.title}</p>
-              <p className="text-xs text-[var(--text-muted)] mt-1 truncate">
-                {act.slug || publicRef(act)}
-              </p>
-            </button>
-          ))}
+        <div className="lg:col-span-1 space-y-3">
+          <div className="space-y-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="제목·slug·설명 검색"
+              className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={courseFilter}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                className="rounded-lg border border-[var(--border)] px-2 py-2 text-xs"
+              >
+                <option value="all">전체 코스</option>
+                {Object.entries(courseTitles).map(([id, title]) => (
+                  <option key={id} value={id}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as 'all' | ActivityType)}
+                className="rounded-lg border border-[var(--border)] px-2 py-2 text-xs"
+              >
+                <option value="all">전체 유형</option>
+                <option value="guide">guide</option>
+                <option value="evaluation">evaluation</option>
+                <option value="exam">exam</option>
+              </select>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)]">
+              {filteredActivities.length}개 표시 · 전체 {activities.length}개
+            </p>
+          </div>
+
+          {filteredActivities.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)] px-1">조건에 맞는 활동이 없습니다.</p>
+          ) : (
+            filteredActivities.map((act) => (
+              <button
+                key={act.id}
+                type="button"
+                onClick={() => selectActivity(act)}
+                className={`w-full text-left rounded-xl border p-3 text-sm transition ${
+                  selectedId === act.id
+                    ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                    : 'border-[var(--border)] bg-[var(--card)] hover:border-slate-300'
+                }`}
+              >
+                <span className="text-[10px] uppercase text-[var(--text-muted)]">{act.activity_type}</span>
+                <p className="font-medium text-[var(--text)] mt-0.5">{act.title}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                  {courseTitles[act.course_id] ?? act.course_id.slice(0, 8)}
+                </p>
+                <p className="text-xs text-[var(--text-muted)] truncate">
+                  {act.slug || publicRef(act)}
+                </p>
+              </button>
+            ))
+          )}
         </div>
 
         <div className="lg:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">

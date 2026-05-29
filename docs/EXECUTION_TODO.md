@@ -1,6 +1,6 @@
 # LMS 개선 실행 TODO (토의 결과 반영)
 
-최종 업데이트: 2026-05-28
+최종 업데이트: 2026-05-29
 
 ## 목표
 - UX/UI와 백엔드 운영 안정성을 함께 개선한다.
@@ -23,8 +23,11 @@
   - 반영: `src/app/course/[id]/page.tsx`
   - 반영: `src/app/lesson/[id]/page.tsx`
   - 반영: `src/app/activity/[id]/page.tsx`
-- [ ] 활동 config 저장 시 서버 스키마 검증 도입 (JSON Schema 또는 Zod)
-- [ ] 관리자 활동 목록 검색/필터(코스/유형/키워드) 추가
+- [x] 활동 config 저장 시 서버 스키마 검증 도입
+  - 반영: `src/lib/activity-config.ts`
+  - 반영: `src/app/api/admin/upsert-activity/route.ts`, `import-exam-questions/route.ts`
+- [x] 관리자 활동 목록 검색/필터(코스/유형/키워드) 추가
+  - 반영: `src/app/admin/activities/page.tsx`
 
 ### P2 (중기, 학습 효과 강화)
 - [ ] 현업 시나리오형 학습카드 템플릿 도입 (증상-진단-조치)

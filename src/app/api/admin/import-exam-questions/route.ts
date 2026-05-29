@@ -7,6 +7,7 @@ import {
   isEvkmcCourseId,
 } from '@/lib/evkmc'
 import { getEcoExamQuestions, getHvExamQuestions } from '@/data/evkmc-exam-banks'
+import { validateActivityConfig } from '@/lib/activity-config'
 
 type ExamQuestion = {
   id: string
@@ -70,11 +71,11 @@ export async function POST(req: NextRequest) {
       .eq('id', activityId)
       .maybeSingle()
 
-    const config = {
+    const config = validateActivityConfig('exam', {
       ...(typeof existing?.config === 'object' && existing.config ? existing.config : {}),
       pass_score: passScore,
       questions,
-    }
+    })
 
     const { error } = await supabase
       .from('course_activities')
