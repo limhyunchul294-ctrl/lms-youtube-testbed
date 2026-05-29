@@ -55,7 +55,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  if (user && path.startsWith('/auth/gsw')) {
+  // GSW에서 넘어온 ?token=... 은 기존 세션(student1 등)이 있어도 반드시 처리해야 함
+  if (user && path.startsWith('/auth/gsw') && !request.nextUrl.searchParams.get('token')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

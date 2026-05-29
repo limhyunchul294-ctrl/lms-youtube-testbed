@@ -135,6 +135,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     user_id: userId,
     email: normalizedEmail,
+    /** 클라이언트 verifyOtp용 (기존 student1 등 세션 덮어쓰기) */
+    token_hash: linkData.properties.hashed_token,
     redirect: actionLink,
   })
 }
