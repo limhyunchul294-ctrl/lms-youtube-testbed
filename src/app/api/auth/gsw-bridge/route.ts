@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveGswBridgeSecret, verifyGswBridgeToken } from '@/lib/gsw-bridge'
 import { EVKMC_COURSE_ID_LIST } from '@/lib/evkmc'
-import { createServiceSupabase } from '@/lib/supabase-server'
+import { createServiceSupabase, establishSessionFromTokenHash } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   const secret = resolveGswBridgeSecret(process.env.GSW_BRIDGE_SECRET)
@@ -150,18 +150,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const actionLink = linkData.properties.action_link
-  if (!actionLink) {
-    return NextResponse.json({ error: '세션 액션 링크를 가져오지 못했습니다.' }, { status: 500 })
-  }
+  const tokenHash = linkData.properties.hashed_token
 
-  return NextResponse.json({
+  return establishSessionFromTokenHash(req, tokenHash, {
     ok: true,
     user_id: userId,
     email: normalizedEmail,
-    /** 클라이언트 verifyOtp용 (기존 student1 등 세션 덮어쓰기) */
-    token_hash: linkData.properties.hashed_token,
-    redirect: actionLink,
+    redirect: '/dashboard',
   })
 }
 

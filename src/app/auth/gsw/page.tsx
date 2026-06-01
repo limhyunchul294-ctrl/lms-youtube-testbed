@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase'
-import { syncProfileFromAuthUser } from '@/lib/profile'
 
 function GswBridgeInner() {
   const searchParams = useSearchParams()
@@ -24,13 +22,9 @@ function GswBridgeInner() {
     }
 
     const run = async () => {
-      const supabase = createClient()
-
-      // 이전 이메일 로그인(student1 등) 세션이 남아 있으면 브릿지 실패 시 그대로 대시보드로 가는 문제 방지
-      await supabase.auth.signOut()
-
       const res = await fetch('/api/auth/gsw-bridge', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       })
@@ -42,37 +36,7 @@ function GswBridgeInner() {
         return
       }
 
-      const email = typeof data.email === 'string' ? data.email : ''
-      const tokenHash = typeof data.token_hash === 'string' ? data.token_hash : ''
-
-      if (tokenHash) {
-        const { error: otpError } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: 'email',
-        })
-        if (!otpError) {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser()
-          if (user) await syncProfileFromAuthUser(supabase, user)
-          router.replace('/dashboard')
-          return
-        }
-        console.warn('GSW bridge verifyOtp failed, trying redirect fallback', otpError.message)
-      }
-
-      const redirect = String(data.redirect || '')
-      if (redirect.startsWith('http')) {
-        window.location.assign(redirect)
-        return
-      }
-
-      setStatus('error')
-      setMessage(
-        email
-          ? `${email} 계정으로 세션을 만들지 못했습니다. 잠시 후 GSW에서 다시 «교육 센터»를 눌러 주세요.`
-          : '세션 연동에 실패했습니다.'
-      )
+      router.replace(typeof data.redirect === 'string' ? data.redirect : '/dashboard')
     }
 
     run()
